@@ -77,7 +77,7 @@ const WIDGETS = {
     hasApiKey: false,
     properties: {
       title: 'World Weather',
-      locations: 'New York,London,Tokyo',
+      locations: 'New York; London; Tokyo',
       units: 'F',
       refreshInterval: 600
     },
@@ -100,7 +100,7 @@ const WIDGETS = {
     generateJs: (props) => `
       // Multi Weather Widget: ${props.id} (uses free wttr.in API - no key needed)
       async function update_${props.id.replace(/-/g, '_')}() {
-        const locations = '${props.locations || 'New York,London,Tokyo'}'.split(',').map(l => l.trim());
+        const locations = '${props.locations || 'New York; London; Tokyo'}'.split(';').map(l => l.trim());
         const container = document.getElementById('${props.id}-list');
         const unit = '${props.units}' === 'C' ? 'C' : 'F';
         const unitSymbol = unit === 'C' ? '°C' : '°F';
@@ -1998,7 +1998,7 @@ const WIDGETS = {
     hasApiKey: false,
     properties: {
       title: 'World Clock',
-      locations: 'New York,London,Tokyo',
+      locations: 'New York; London; Tokyo',
       format24h: false,
       refreshInterval: 60
     },
@@ -2018,7 +2018,7 @@ const WIDGETS = {
       </div>`,
     generateJs: (props) => `
       // World Clock Widget: ${props.id} (uses wttr.in for timezone data)
-      const locs_${props.id.replace(/-/g, '_')} = '${props.locations || 'New York,London,Tokyo'}'.split(',').map(s => s.trim());
+      const locs_${props.id.replace(/-/g, '_')} = '${props.locations || 'New York; London; Tokyo'}'.split(';').map(s => s.trim());
       const hour12_${props.id.replace(/-/g, '_')} = ${!props.format24h};
       
       async function update_${props.id.replace(/-/g, '_')}() {
