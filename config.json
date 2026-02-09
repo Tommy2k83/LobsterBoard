@@ -15,7 +15,129 @@
         "title": "Local Weather",
         "location": "Atlanta",
         "units": "F",
+        "refreshInterval": 600,
+        "showHeader": true
+      }
+    },
+    {
+      "id": "widget-2",
+      "type": "weather-multi",
+      "x": 240,
+      "y": 20,
+      "width": 340,
+      "height": 200,
+      "properties": {
+        "title": "World Weather",
+        "locations": "New York; London; Tokyo",
+        "units": "F",
         "refreshInterval": 600
+      }
+    },
+    {
+      "id": "widget-3",
+      "type": "clock",
+      "x": 20,
+      "y": 160,
+      "width": 200,
+      "height": 120,
+      "properties": {
+        "title": "Clock",
+        "timezone": "local",
+        "format24h": false
+      }
+    },
+    {
+      "id": "widget-4",
+      "type": "world-clock",
+      "x": 240,
+      "y": 240,
+      "width": 340,
+      "height": 200,
+      "properties": {
+        "title": "World Clock",
+        "locations": "New York; London; Tokyo",
+        "format24h": false,
+        "refreshInterval": 60
+      }
+    },
+    {
+      "id": "widget-5",
+      "type": "countdown",
+      "x": 20,
+      "y": 300,
+      "width": 200,
+      "height": 120,
+      "properties": {
+        "title": "Countdown",
+        "targetDate": "2026-02-27",
+        "showHours": true,
+        "showMinutes": true
+      }
+    },
+    {
+      "id": "widget-6",
+      "type": "cpu-memory",
+      "x": 600,
+      "y": 20,
+      "width": 200,
+      "height": 120,
+      "properties": {
+        "title": "System",
+        "endpoint": "/api/system",
+        "refreshInterval": 5
+      }
+    },
+    {
+      "id": "widget-7",
+      "type": "disk-usage",
+      "x": 600,
+      "y": 160,
+      "width": 200,
+      "height": 100,
+      "properties": {
+        "title": "Disk",
+        "path": "/",
+        "endpoint": "/api/disk",
+        "refreshInterval": 60
+      }
+    },
+    {
+      "id": "widget-8",
+      "type": "network-speed",
+      "x": 600,
+      "y": 280,
+      "width": 200,
+      "height": 100,
+      "properties": {
+        "title": "Network",
+        "endpoint": "/api/network",
+        "refreshInterval": 2
+      }
+    },
+    {
+      "id": "widget-9",
+      "type": "docker-containers",
+      "x": 820,
+      "y": 20,
+      "width": 380,
+      "height": 250,
+      "properties": {
+        "title": "Containers",
+        "endpoint": "/api/docker",
+        "refreshInterval": 10
+      }
+    },
+    {
+      "id": "widget-10",
+      "type": "uptime-monitor",
+      "x": 820,
+      "y": 300,
+      "width": 350,
+      "height": 220,
+      "properties": {
+        "title": "Uptime",
+        "services": "Website,API,Database",
+        "refreshInterval": 30
       }
     }
   ]

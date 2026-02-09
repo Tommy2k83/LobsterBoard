@@ -134,6 +134,12 @@ function stopWidgetScripts() {
     window._widgetIntervals.forEach(id => clearInterval(id));
     window._widgetIntervals = [];
   }
+  // Reset SSE connection so it reconnects fresh on next view
+  if (_statsSource) {
+    _statsSource.close();
+    _statsSource = null;
+    _statsCallbacks = [];
+  }
 }
 
 function updateEmptyState() {

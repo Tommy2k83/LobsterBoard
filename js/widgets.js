@@ -52,6 +52,12 @@ function _formatUptime(seconds) {
   return m + 'm';
 }
 
+// Expose helpers globally for executeWidgetScripts (new Function runs in global scope)
+window.onSystemStats = onSystemStats;
+window._formatBytes = _formatBytes;
+window._formatBytesPerSec = _formatBytesPerSec;
+window._formatUptime = _formatUptime;
+
 const WIDGETS = {
   // ─────────────────────────────────────────────
   // SMALL CARDS (KPI style)
@@ -1313,9 +1319,7 @@ const WIDGETS = {
           <span class="dash-card-title">📡 ${props.title || 'Uptime'}</span>
         </div>
         <div class="dash-card-body" id="${props.id}-services">
-          <div class="uptime-row"><span>🟢 Website</span><span class="uptime-pct">99.9%</span></div>
-          <div class="uptime-row"><span>🟢 API</span><span class="uptime-pct">100%</span></div>
-          <div class="uptime-row"><span>🟡 Database</span><span class="uptime-pct">98.5%</span></div>
+          <div class="uptime-row" style="color:var(--text-muted);justify-content:center;">Loading...</div>
         </div>
       </div>`,
     generateJs: (props) => `
@@ -1369,9 +1373,7 @@ const WIDGETS = {
           <span class="dash-card-badge" id="${props.id}-badge">—</span>
         </div>
         <div class="dash-card-body compact-list" id="${props.id}-list">
-          <div class="docker-row">🟢 nginx <span class="docker-status">Up 3 days</span></div>
-          <div class="docker-row">🟢 postgres <span class="docker-status">Up 3 days</span></div>
-          <div class="docker-row">🟢 redis <span class="docker-status">Up 3 days</span></div>
+          <div class="docker-row" style="color:var(--text-muted);justify-content:center;">Loading...</div>
         </div>
       </div>`,
     generateJs: (props) => `
@@ -1399,7 +1401,7 @@ const WIDGETS = {
     name: 'Network Speed',
     icon: '🌐',
     category: 'small',
-    description: 'Shows network upload/download speeds. Requires system stats API.',
+    description: 'Shows real-time network activity (upload/download throughput). Updates every 2 seconds.',
     defaultWidth: 200,
     defaultHeight: 100,
     hasApiKey: false,

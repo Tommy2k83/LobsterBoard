@@ -834,6 +834,29 @@ body {
 }
 
 /* ============================================
+   System Widget Styles
+   ============================================ */
+
+.uptime-row, .docker-row, .sys-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.uptime-row + .uptime-row,
+.docker-row + .docker-row,
+.sys-row + .sys-row {
+  border-top: 1px solid var(--border);
+}
+
+.uptime-pct, .docker-status {
+  font-weight: 600;
+  margin-left: 16px;
+}
+
+/* ============================================
    Edit Mode / View Mode Overrides
    ============================================ */
 
