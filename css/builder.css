@@ -47,13 +47,24 @@
   font-size: calc(12px * var(--font-scale));
 }
 
-.canvas .weather-row {
+.canvas .weather-row,
+.canvas .tz-row,
+.canvas .net-row {
   font-size: calc(13px * var(--font-scale));
 }
 
 .canvas .widget-icon,
 .canvas .weather-icon {
   font-size: calc(1em * var(--font-scale));
+}
+
+/* Disk ring and network values */
+.canvas .kpi-ring-label {
+  font-size: calc(11px * var(--font-scale)) !important;
+}
+
+.canvas .kpi-data .kpi-label {
+  font-size: calc(11px * var(--font-scale)) !important;
 }
 
 * {
@@ -882,7 +893,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
 }
 
 .uptime-row + .uptime-row,
@@ -895,6 +906,57 @@ body {
 .uptime-pct, .docker-status {
   font-weight: 600;
   margin-left: 16px;
+}
+
+/* Weather rows */
+.weather-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: calc(13px * var(--font-scale));
+}
+
+.weather-row + .weather-row {
+  border-top: 1px solid var(--border);
+}
+
+.weather-icon {
+  margin-right: 10px;
+  font-size: calc(16px * var(--font-scale));
+}
+
+.weather-loc {
+  flex: 1;
+  margin-right: 12px;
+}
+
+.weather-temp {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Timezone / World Clock rows */
+.tz-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: calc(13px * var(--font-scale));
+}
+
+.tz-row + .tz-row {
+  border-top: 1px solid var(--border);
+}
+
+.tz-city {
+  flex: 1;
+  margin-right: 16px;
+}
+
+.tz-time {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--accent-blue);
 }
 
 /* ============================================
