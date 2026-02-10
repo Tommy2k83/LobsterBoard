@@ -920,6 +920,9 @@ function showProperties(widget) {
 
   document.getElementById('prop-refresh').value = widget.properties.refreshInterval || 60;
 
+  // Render dynamic extra properties for fields not handled by hardcoded groups
+  renderExtraProperties(widget, template);
+
   // Show widget description
   const descEl = document.getElementById('prop-description');
   if (template.description) {
@@ -928,6 +931,113 @@ function showProperties(widget) {
   } else {
     document.getElementById('prop-description-group').style.display = 'none';
   }
+}
+
+// Properties already handled by hardcoded UI groups
+const HANDLED_PROPS = new Set([
+  'title', 'showHeader', 'refreshInterval', 'endpoint',
+  'fontSize', 'fontColor', 'textAlign', 'fontWeight',
+  'showBorder', 'lineColor', 'lineThickness', 'columns', 'feedUrl',
+  'location', 'locations', 'units', 'format24h',
+  'targetDate', 'showHours', 'showMinutes',
+  'workMinutes', 'breakMinutes',
+  'imagePath', 'imageUrl', 'images', 'links',
+  'embedUrl', 'repo', 'currentVersion', 'openclawUrl'
+]);
+
+// Known select/dropdown options for specific properties
+const PROP_OPTIONS = {
+  period: ['today', 'week', 'month', 'year'],
+  units: ['F', 'C'],
+};
+
+function renderExtraProperties(widget, template) {
+  const container = document.getElementById('prop-extra-container');
+  container.innerHTML = '';
+
+  const templateProps = template.properties || {};
+  // Merge: show any property in templateProps or widget.properties not in HANDLED_PROPS
+  const allKeys = new Set([...Object.keys(templateProps), ...Object.keys(widget.properties)]);
+
+  for (const key of allKeys) {
+    if (HANDLED_PROPS.has(key)) continue;
+
+    const defaultVal = templateProps[key];
+    const currentVal = widget.properties[key] !== undefined ? widget.properties[key] : defaultVal;
+    if (currentVal === undefined) continue;
+
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+
+    const label = document.createElement('label');
+    // Convert camelCase to readable label
+    label.textContent = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+
+    let input;
+
+    if (PROP_OPTIONS[key]) {
+      // Dropdown
+      input = document.createElement('select');
+      PROP_OPTIONS[key].forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
+        if (String(currentVal) === String(opt)) option.selected = true;
+        input.appendChild(option);
+      });
+    } else if (typeof currentVal === 'boolean' || typeof defaultVal === 'boolean') {
+      // Checkbox
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = !!currentVal;
+      // Style: put checkbox inline with label
+      label.style.display = 'inline';
+      label.style.marginLeft = '6px';
+      group.appendChild(input);
+      group.appendChild(label);
+      input.dataset.extraProp = key;
+      input.dataset.extraType = 'boolean';
+      input.addEventListener('change', onExtraPropertyChange);
+      container.appendChild(group);
+      continue;
+    } else if (typeof currentVal === 'number' || typeof defaultVal === 'number') {
+      // Number input
+      input = document.createElement('input');
+      input.type = 'number';
+      input.value = currentVal;
+    } else if (typeof currentVal === 'string') {
+      // Text input
+      input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentVal;
+    } else {
+      continue; // Skip objects/arrays
+    }
+
+    input.dataset.extraProp = key;
+    input.dataset.extraType = typeof (defaultVal !== undefined ? defaultVal : currentVal);
+    input.addEventListener('change', onExtraPropertyChange);
+    input.addEventListener('input', onExtraPropertyChange);
+
+    group.appendChild(label);
+    group.appendChild(input);
+    container.appendChild(group);
+  }
+}
+
+function onExtraPropertyChange(e) {
+  if (!state.selectedWidget) return;
+  const key = e.target.dataset.extraProp;
+  const type = e.target.dataset.extraType;
+
+  if (type === 'boolean') {
+    state.selectedWidget.properties[key] = e.target.checked;
+  } else if (type === 'number') {
+    state.selectedWidget.properties[key] = parseFloat(e.target.value) || 0;
+  } else {
+    state.selectedWidget.properties[key] = e.target.value;
+  }
+  renderWidgetPreview(state.selectedWidget);
 }
 
 function hideProperties() {
