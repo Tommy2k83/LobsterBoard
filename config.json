@@ -268,7 +268,8 @@
       "properties": {
         "title": "Auth Type",
         "endpoint": "/api/status",
-        "refreshInterval": 30
+        "refreshInterval": 30,
+        "showHeader": true
       }
     },
     {
@@ -279,9 +280,10 @@
       "width": 240,
       "height": 140,
       "properties": {
-        "title": "OpenClaw",
+        "title": "OpenClaw Release",
         "openclawUrl": "",
-        "refreshInterval": 3600
+        "refreshInterval": 3600,
+        "showHeader": true
       }
     },
     {
@@ -292,10 +294,55 @@
       "width": 260,
       "height": 140,
       "properties": {
-        "title": "Release",
+        "title": "Code Pilot Release",
         "repo": "op7418/CodePilot",
         "currentVersion": ".0.6",
-        "refreshInterval": 3600
+        "refreshInterval": 3600,
+        "showHeader": true
+      }
+    },
+    {
+      "id": "widget-25",
+      "type": "activity-list",
+      "x": 1020,
+      "y": 260,
+      "width": 400,
+      "height": 300,
+      "properties": {
+        "title": "Today",
+        "endpoint": "/api/activity",
+        "maxItems": 10,
+        "refreshInterval": 60,
+        "showHeader": true
+      }
+    },
+    {
+      "id": "widget-26",
+      "type": "cron-jobs",
+      "x": 1440,
+      "y": 260,
+      "width": 420,
+      "height": 300,
+      "properties": {
+        "title": "Cron",
+        "endpoint": "/api/cron",
+        "refreshInterval": 30,
+        "showHeader": true
+      }
+    },
+    {
+      "id": "widget-27",
+      "type": "system-log",
+      "x": 1020,
+      "y": 580,
+      "width": 840,
+      "height": 280,
+      "properties": {
+        "title": "System Log",
+        "endpoint": "/api/logs",
+        "maxLines": 50,
+        "refreshInterval": 10,
+        "showHeader": true
       }
     }
   ]

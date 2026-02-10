@@ -214,10 +214,85 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS' && pathname.startsWith('/api/')) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type'
     });
     res.end();
+    return;
+  }
+
+  // GET/POST /api/todos - Read/write todo list
+  if (pathname === '/api/todos') {
+    const todosFile = path.join(__dirname, 'todos.json');
+    if (req.method === 'GET') {
+      fs.readFile(todosFile, 'utf8', (err, data) => {
+        if (err) {
+          if (err.code === 'ENOENT') return sendJson(res, 200, []);
+          return sendError(res, err.message);
+        }
+        try { sendJson(res, 200, JSON.parse(data)); }
+        catch (e) { sendJson(res, 200, []); }
+      });
+      return;
+    }
+    if (req.method === 'POST') {
+      const MAX_TODO_BODY = 256 * 1024; // 256 KB limit
+      let body = '';
+      let overflow = false;
+      req.on('data', chunk => {
+        body += chunk.toString();
+        if (body.length > MAX_TODO_BODY) { overflow = true; req.destroy(); }
+      });
+      req.on('end', () => {
+        if (overflow) { sendError(res, 'Request body too large', 413); return; }
+        try {
+          const todos = JSON.parse(body);
+          fs.writeFile(todosFile, JSON.stringify(todos, null, 2), 'utf8', (err) => {
+            if (err) return sendError(res, err.message);
+            sendJson(res, 200, { status: 'ok' });
+          });
+        } catch (e) { sendError(res, 'Invalid JSON', 400); }
+      });
+      return;
+    }
+  }
+
+  // GET /api/cron - Read cron jobs from OpenClaw cron store
+  if (req.method === 'GET' && pathname === '/api/cron') {
+    const cronFile = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+    fs.readFile(cronFile, 'utf8', (err, data) => {
+      if (err) {
+        if (err.code === 'ENOENT') return sendJson(res, 200, { jobs: [] });
+        return sendError(res, err.message);
+      }
+      try {
+        const parsed = JSON.parse(data);
+        const jobs = (parsed.jobs || []).map(j => ({
+          name: j.name,
+          schedule: j.schedule?.expr || '—',
+          tz: j.schedule?.tz || '',
+          enabled: j.enabled,
+          lastRun: j.state?.lastRunAtMs ? new Date(j.state.lastRunAtMs).toISOString() : null,
+          lastStatus: j.state?.lastStatus || null
+        }));
+        sendJson(res, 200, { jobs });
+      } catch (e) { sendError(res, e.message); }
+    });
+    return;
+  }
+
+  // GET /api/logs - Read last 50 lines from gateway log
+  if (req.method === 'GET' && pathname === '/api/logs') {
+    const logFile = path.join(os.homedir(), '.openclaw', 'logs', 'gateway.log');
+    fs.readFile(logFile, 'utf8', (err, data) => {
+      if (err) {
+        if (err.code === 'ENOENT') return sendJson(res, 200, { lines: [] });
+        return sendError(res, err.message);
+      }
+      const allLines = data.split('\n').filter(l => l.trim());
+      const lines = allLines.slice(-50);
+      sendJson(res, 200, { lines });
+    });
     return;
   }
 

@@ -566,17 +566,33 @@ const WIDGETS = {
         try {
           const res = await fetch('${props.endpoint || '/api/cron'}');
           const json = await res.json();
-          const data = json.data || json;
+          const jobs = json.jobs || [];
           const list = document.getElementById('${props.id}-list');
           const badge = document.getElementById('${props.id}-badge');
-          const jobs = data.jobs || [];
-          list.innerHTML = jobs.map(job => 
-            '<div class="cron-item"><span class="cron-name">' + job.name + '</span><span class="cron-next">' + job.next + '</span></div>'
-          ).join('');
+          if (!jobs.length) {
+            list.innerHTML = '<div class="cron-item"><span class="cron-name" style="opacity:0.5;">No cron jobs found</span></div>';
+            badge.textContent = '0';
+            return;
+          }
+          list.innerHTML = jobs.map(job => {
+            const statusDot = job.enabled ? '🟢' : '🔴';
+            const lastRun = job.lastRun ? new Date(job.lastRun).toLocaleString() : 'Never';
+            const statusBadge = job.lastStatus ? (job.lastStatus === 'ok' ? '✓' : '✗') : '';
+            return '<div class="cron-item" style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border,#30363d);font-size:calc(13px * var(--font-scale, 1));">' +
+              '<span style="flex-shrink:0;">' + statusDot + '</span>' +
+              '<div style="flex:1;min-width:0;">' +
+                '<div style="font-weight:500;">' + job.name + '</div>' +
+                '<div style="font-size:0.85em;opacity:0.6;font-family:monospace;">' + job.schedule + (job.tz ? ' (' + job.tz + ')' : '') + '</div>' +
+              '</div>' +
+              '<div style="text-align:right;font-size:0.8em;opacity:0.6;flex-shrink:0;">' +
+                '<div>' + statusBadge + ' ' + lastRun + '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('');
           badge.textContent = jobs.length + ' jobs';
         } catch (e) {
           console.error('Cron jobs widget error:', e);
-          document.getElementById('${props.id}-list').innerHTML = '<div class="cron-item"><span class="cron-name">—</span></div>';
+          document.getElementById('${props.id}-list').innerHTML = '<div class="cron-item"><span class="cron-name">Error loading</span></div>';
         }
       }
       update_${props.id.replace(/-/g, '_')}();
@@ -624,22 +640,26 @@ const WIDGETS = {
         try {
           const res = await fetch('${props.endpoint || '/api/logs'}');
           const json = await res.json();
-          const data = json.data || json;
+          const lines = json.lines || [];
           const log = document.getElementById('${props.id}-log');
           const badge = document.getElementById('${props.id}-badge');
-          const lines = data.lines || [];
-          log.innerHTML = lines.slice(-${props.maxLines || 50}).map(line => 
-            '<div class="log-line">' + line + '</div>'
-          ).join('');
+          const wasAtBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
+          log.innerHTML = lines.slice(-${props.maxLines || 50}).map(line => {
+            const escaped = line.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let cls = 'log-line';
+            if (/\\b(error|fatal)\\b/i.test(line)) cls += ' log-error';
+            else if (/\\bwarn/i.test(line)) cls += ' log-warn';
+            return '<div class="' + cls + '" style="font-family:monospace;font-size:calc(11px * var(--font-scale, 1));padding:1px 0;white-space:pre-wrap;word-break:break-all;">' + escaped + '</div>';
+          }).join('');
           badge.textContent = lines.length + ' lines';
-          log.scrollTop = log.scrollHeight;
+          if (wasAtBottom) log.scrollTop = log.scrollHeight;
         } catch (e) {
           console.error('System log widget error:', e);
-          document.getElementById('${props.id}-log').innerHTML = '<div class="log-line">—</div>';
+          document.getElementById('${props.id}-log').innerHTML = '<div class="log-line">Failed to load logs</div>';
         }
       }
       update_${props.id.replace(/-/g, '_')}();
-      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 10) * 1000});
+      setInterval(update_${props.id.replace(/-/g, '_')}, ${Math.max((props.refreshInterval || 10), 30) * 1000});
     `
   },
 
@@ -1544,20 +1564,73 @@ const WIDGETS = {
       <div class="dash-card" id="widget-${props.id}" style="height:100%;">
         <div class="dash-card-head">
           <span class="dash-card-title">✅ ${props.title || 'Todo'}</span>
+          <span class="dash-card-badge" id="${props.id}-badge">0</span>
         </div>
-        <div class="dash-card-body" id="${props.id}-list">
+        <div class="dash-card-body" style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+          <div style="display:flex;gap:6px;padding:0 0 8px 0;flex-shrink:0;">
+            <input type="text" id="${props.id}-input" placeholder="Add a task..." style="flex:1;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text-primary);font-size:calc(12px * var(--font-scale, 1));">
+            <button id="${props.id}-add-btn" style="background:var(--accent-blue);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:calc(12px * var(--font-scale, 1));">Add</button>
+          </div>
+          <div id="${props.id}-list" style="flex:1;overflow-y:auto;"></div>
         </div>
       </div>`,
     generateJs: (props) => `
       // Todo List Widget: ${props.id}
-      const items_${props.id.replace(/-/g, '_')} = '${props.items || 'Add tasks'}'.split(',');
-      function render_${props.id.replace(/-/g, '_')}() {
+      (function() {
+        let todos = [];
         const container = document.getElementById('${props.id}-list');
-        container.innerHTML = items_${props.id.replace(/-/g, '_')}.map((item, i) => 
-          '<div class="todo-item"><input type="checkbox" id="${props.id}-' + i + '"><label for="${props.id}-' + i + '">' + item.trim() + '</label></div>'
-        ).join('');
-      }
-      render_${props.id.replace(/-/g, '_')}();
+        const input = document.getElementById('${props.id}-input');
+        const addBtn = document.getElementById('${props.id}-add-btn');
+        const badge = document.getElementById('${props.id}-badge');
+
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        function render() {
+          badge.textContent = todos.filter(t => !t.done).length + '/' + todos.length;
+          container.innerHTML = todos.map((t, i) =>
+            '<div class="todo-item" style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:calc(13px * var(--font-scale, 1));">' +
+              '<input type="checkbox" data-idx="' + i + '"' + (t.done ? ' checked' : '') + '>' +
+              '<span style="flex:1;' + (t.done ? 'text-decoration:line-through;opacity:0.5;' : '') + '">' + esc(t.text) + '</span>' +
+              '<button data-del="' + i + '" style="background:none;border:none;color:var(--accent-red,#f85149);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>' +
+            '</div>'
+          ).join('');
+        }
+
+        function save() {
+          fetch('/api/todos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(todos) });
+        }
+
+        container.addEventListener('change', function(e) {
+          if (e.target.dataset.idx != null) {
+            todos[e.target.dataset.idx].done = e.target.checked;
+            save(); render();
+          }
+        });
+
+        container.addEventListener('click', function(e) {
+          if (e.target.dataset.del != null) {
+            todos.splice(parseInt(e.target.dataset.del), 1);
+            save(); render();
+          }
+        });
+
+        addBtn.addEventListener('click', function() {
+          const text = input.value.trim();
+          if (!text) return;
+          todos.push({ text: text, done: false });
+          input.value = '';
+          save(); render();
+        });
+
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') addBtn.click();
+        });
+
+        fetch('/api/todos').then(r => r.json()).then(data => {
+          todos = Array.isArray(data) ? data : [];
+          render();
+        }).catch(() => render());
+      })();
     `
   },
 
