@@ -304,8 +304,8 @@
     {
       "id": "widget-25",
       "type": "activity-list",
-      "x": 1020,
-      "y": 260,
+      "x": 540,
+      "y": 740,
       "width": 400,
       "height": 300,
       "properties": {
@@ -319,10 +319,10 @@
     {
       "id": "widget-26",
       "type": "cron-jobs",
-      "x": 1440,
+      "x": 1020,
       "y": 260,
-      "width": 420,
-      "height": 300,
+      "width": 860,
+      "height": 360,
       "properties": {
         "title": "Cron",
         "endpoint": "/api/cron",
@@ -334,9 +334,9 @@
       "id": "widget-27",
       "type": "system-log",
       "x": 1020,
-      "y": 580,
-      "width": 840,
-      "height": 280,
+      "y": 660,
+      "width": 860,
+      "height": 380,
       "properties": {
         "title": "System Log",
         "endpoint": "/api/logs",

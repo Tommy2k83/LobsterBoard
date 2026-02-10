@@ -687,6 +687,9 @@ function initProperties() {
   // Show border checkbox
   document.getElementById('prop-showborder').addEventListener('change', onPropertyChange);
 
+  // Columns
+  document.getElementById('prop-columns').addEventListener('change', onPropertyChange);
+
   // Text header fields
   document.getElementById('prop-fontsize').addEventListener('change', onPropertyChange);
   document.getElementById('prop-fontcolor').addEventListener('input', onPropertyChange);
@@ -759,6 +762,7 @@ function showProperties(widget) {
   document.getElementById('prop-linecolor-group').style.display = 'none';
   document.getElementById('prop-linethickness-group').style.display = 'none';
   document.getElementById('prop-showborder-group').style.display = 'none';
+  document.getElementById('prop-columns-group').style.display = 'none';
 
   // Show text header fields
   if (widget.properties.fontSize !== undefined) {
@@ -784,6 +788,12 @@ function showProperties(widget) {
     document.getElementById('prop-linecolor').value = widget.properties.lineColor || '#30363d';
     document.getElementById('prop-linethickness-group').style.display = 'block';
     document.getElementById('prop-linethickness').value = widget.properties.lineThickness || 2;
+  }
+
+  // Show columns field
+  if (widget.properties.columns !== undefined) {
+    document.getElementById('prop-columns-group').style.display = 'block';
+    document.getElementById('prop-columns').value = widget.properties.columns || 1;
   }
 
   // Show location field (single)
@@ -1167,6 +1177,10 @@ function onPropertyChange(e) {
       break;
     case 'prop-linethickness':
       widget.properties.lineThickness = parseInt(e.target.value) || 2;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-columns':
+      widget.properties.columns = parseInt(e.target.value) || 1;
       renderWidgetPreview(widget);
       break;
   }

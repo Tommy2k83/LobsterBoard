@@ -542,6 +542,7 @@ const WIDGETS = {
     properties: {
       title: 'Cron',
       endpoint: '/api/cron',
+      columns: 1,
       refreshInterval: 30
     },
     preview: `<div style="padding:4px;font-size:11px;color:#8b949e;">
@@ -554,7 +555,7 @@ const WIDGETS = {
           <span class="dash-card-title">⏰ ${props.title || 'Cron'}</span>
           <span class="dash-card-badge" id="${props.id}-badge">—</span>
         </div>
-        <div class="dash-card-body" id="${props.id}-list">
+        <div class="dash-card-body" id="${props.id}-list" style="display:grid;grid-template-columns:repeat(${props.columns || 1}, 1fr);gap:0 12px;align-content:start;">
           <div class="cron-item"><span class="cron-name">Daily backup</span><span class="cron-next">2:00 AM</span></div>
           <div class="cron-item"><span class="cron-name">Sync data</span><span class="cron-next">*/5 min</span></div>
           <div class="cron-item"><span class="cron-name">Health check</span><span class="cron-next">*/15 min</span></div>
@@ -574,15 +575,19 @@ const WIDGETS = {
             badge.textContent = '0';
             return;
           }
+          const cols = ${props.columns || 1};
+          list.style.display = 'grid';
+          list.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+          list.style.gap = '0 12px';
+          list.style.alignContent = 'start';
           list.innerHTML = jobs.map(job => {
             const statusDot = job.enabled ? '🟢' : '🔴';
-            const lastRun = job.lastRun ? new Date(job.lastRun).toLocaleString() : 'Never';
+            const lastRun = job.lastRun ? new Date(job.lastRun).toLocaleTimeString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never';
             const statusBadge = job.lastStatus ? (job.lastStatus === 'ok' ? '✓' : '✗') : '';
             return '<div class="cron-item" style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border,#30363d);font-size:calc(13px * var(--font-scale, 1));">' +
               '<span style="flex-shrink:0;">' + statusDot + '</span>' +
               '<div style="flex:1;min-width:0;">' +
                 '<div style="font-weight:500;">' + job.name + '</div>' +
-                '<div style="font-size:0.85em;opacity:0.6;font-family:monospace;">' + job.schedule + (job.tz ? ' (' + job.tz + ')' : '') + '</div>' +
               '</div>' +
               '<div style="text-align:right;font-size:0.8em;opacity:0.6;flex-shrink:0;">' +
                 '<div>' + statusBadge + ' ' + lastRun + '</div>' +
@@ -645,6 +650,14 @@ const WIDGETS = {
           const badge = document.getElementById('${props.id}-badge');
           const wasAtBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
           log.innerHTML = lines.slice(-${props.maxLines || 50}).map(line => {
+            // Convert ISO timestamps to human-readable format
+            line = line.replace(/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z?/g, function(match) {
+              try {
+                const d = new Date(match);
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+                       d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+              } catch(e) { return match; }
+            });
             const escaped = line.replace(/</g, '&lt;').replace(/>/g, '&gt;');
             let cls = 'log-line';
             if (/\\b(error|fatal)\\b/i.test(line)) cls += ' log-error';
