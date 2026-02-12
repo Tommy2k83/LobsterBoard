@@ -480,10 +480,14 @@ function renderWidget(widget) {
 
   el.innerHTML = `
     <div class="widget-render">${widgetContent}</div>
-    <div class="resize-handle" data-corner="se"></div>
-    <div class="resize-handle" data-corner="sw"></div>
-    <div class="resize-handle" data-corner="ne"></div>
-    <div class="resize-handle" data-corner="nw"></div>
+    <div class="resize-handle" data-pos="se"></div>
+    <div class="resize-handle" data-pos="sw"></div>
+    <div class="resize-handle" data-pos="ne"></div>
+    <div class="resize-handle" data-pos="nw"></div>
+    <div class="resize-handle" data-pos="n"></div>
+    <div class="resize-handle" data-pos="s"></div>
+    <div class="resize-handle" data-pos="e"></div>
+    <div class="resize-handle" data-pos="w"></div>
   `;
 
   // Apply initial edit mode styles
@@ -520,8 +524,8 @@ function renderWidget(widget) {
     handle.addEventListener('mousedown', (e) => {
       if (!state.editMode) return;
       e.stopPropagation();
-      const corner = e.target.dataset.corner || 'se';
-      startResizeWidget(e, widget, corner);
+      const pos = e.target.dataset.pos || 'se';
+      startResizeWidget(e, widget, pos);
     });
   });
 
@@ -616,7 +620,7 @@ function startDragWidget(e, widget) {
   document.addEventListener('mouseup', onUp);
 }
 
-function startResizeWidget(e, widget, corner = 'se') {
+function startResizeWidget(e, widget, pos = 'se') {
   const el = document.getElementById(widget.id);
   const startX = e.clientX;
   const startY = e.clientY;
@@ -628,8 +632,16 @@ function startResizeWidget(e, widget, corner = 'se') {
   const minW = 100;
   const minH = 60;
 
-  const isWest = corner.includes('w');
-  const isNorth = corner.includes('n');
+  const isWest = pos.includes('w');
+  const isEast = pos.includes('e');
+  const isNorth = pos.includes('n');
+  const isSouth = pos.includes('s');
+
+  // mid-edge handles are single-letter
+  const edgeW = pos == 'w';
+  const edgeE = pos == 'e';
+  const edgeN = pos == 'n';
+  const edgeS = pos == 's';
 
   function snap(v) {
     return Math.round(v / 20) * 20;
@@ -644,17 +656,31 @@ function startResizeWidget(e, widget, corner = 'se') {
     let newW = origW;
     let newH = origH;
 
-    if (isWest) {
+    // Horizontal
+    if (edgeW) {
+      newX = origX + dx;
+      newW = origW - dx;
+    } else if (edgeE) {
+      newW = origW + dx;
+    } else if (isWest) {
       newX = origX + dx;
       newW = origW - dx;
     } else {
+      // east side (se/ne corners)
       newW = origW + dx;
     }
 
-    if (isNorth) {
+    // Vertical
+    if (edgeN) {
+      newY = origY + dy;
+      newH = origH - dy;
+    } else if (edgeS) {
+      newH = origH + dy;
+    } else if (isNorth) {
       newY = origY + dy;
       newH = origH - dy;
     } else {
+      // south side (se/sw corners)
       newH = origH + dy;
     }
 

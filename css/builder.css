@@ -449,10 +449,16 @@ body {
 }
 
 /* Corner positions */
-.placed-widget .resize-handle[data-corner="se"] { bottom: 0; right: 0; cursor: se-resize; border-radius: 0 0 6px 0; background: linear-gradient(135deg, transparent 50%, var(--accent-blue) 50%); }
-.placed-widget .resize-handle[data-corner="sw"] { bottom: 0; left: 0; cursor: sw-resize; border-radius: 0 0 0 6px; background: linear-gradient(225deg, transparent 50%, var(--accent-blue) 50%); }
-.placed-widget .resize-handle[data-corner="ne"] { top: 0; right: 0; cursor: ne-resize; border-radius: 0 6px 0 0; background: linear-gradient(45deg, transparent 50%, var(--accent-blue) 50%); }
-.placed-widget .resize-handle[data-corner="nw"] { top: 0; left: 0; cursor: nw-resize; border-radius: 6px 0 0 0; background: linear-gradient(315deg, transparent 50%, var(--accent-blue) 50%); }
+.placed-widget .resize-handle[data-pos="se"] { bottom: 0; right: 0; cursor: se-resize; border-radius: 0 0 6px 0; background: linear-gradient(135deg, transparent 50%, var(--accent-blue) 50%); }
+.placed-widget .resize-handle[data-pos="sw"] { bottom: 0; left: 0; cursor: sw-resize; border-radius: 0 0 0 6px; background: linear-gradient(225deg, transparent 50%, var(--accent-blue) 50%); }
+.placed-widget .resize-handle[data-pos="ne"] { top: 0; right: 0; cursor: ne-resize; border-radius: 0 6px 0 0; background: linear-gradient(45deg, transparent 50%, var(--accent-blue) 50%); }
+.placed-widget .resize-handle[data-pos="nw"] { top: 0; left: 0; cursor: nw-resize; border-radius: 6px 0 0 0; background: linear-gradient(315deg, transparent 50%, var(--accent-blue) 50%); }
+
+/* Mid-edge handles: show on hover/selected, but keep them subtle */
+.placed-widget .resize-handle[data-pos="n"]  { top: 0; left: 50%; transform: translateX(-50%); cursor: n-resize; background: linear-gradient(180deg, var(--accent-blue), transparent); border-radius: 6px 6px 0 0; }
+.placed-widget .resize-handle[data-pos="s"]  { bottom: 0; left: 50%; transform: translateX(-50%); cursor: s-resize; background: linear-gradient(0deg, var(--accent-blue), transparent); border-radius: 0 0 6px 6px; }
+.placed-widget .resize-handle[data-pos="e"]  { right: 0; top: 50%; transform: translateY(-50%); cursor: e-resize; background: linear-gradient(90deg, var(--accent-blue), transparent); border-radius: 0 6px 6px 0; }
+.placed-widget .resize-handle[data-pos="w"]  { left: 0; top: 50%; transform: translateY(-50%); cursor: w-resize; background: linear-gradient(270deg, var(--accent-blue), transparent); border-radius: 6px 0 0 6px; }
 
 .placed-widget:hover .resize-handle,
 .placed-widget.selected .resize-handle {
