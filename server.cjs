@@ -321,14 +321,27 @@ const server = http.createServer((req, res) => {
   // GET /api/system-log - Structured system log entries
   if (req.method === 'GET' && pathname === '/api/system-log') {
     try {
-      const logPath = path.join(os.homedir(), '.openclaw', 'logs', 'gateway.log');
-      if (!fs.existsSync(logPath)) {
-        sendJson(res, 200, { status: 'ok', entries: [] });
-        return;
-      }
-      const content = fs.readFileSync(logPath, 'utf8');
       const maxLines = Math.min(Math.max(parseInt(parsedUrl.searchParams.get('max')) || 50, 1), 200);
-      const lines = content.split('\n').filter(l => l.trim());
+      const logPath = path.join(os.homedir(), '.openclaw', 'logs', 'gateway.log');
+
+      // Prefer file logs if present; otherwise fall back to journald (systemd user service)
+      let lines = [];
+      if (fs.existsSync(logPath)) {
+        const content = fs.readFileSync(logPath, 'utf8');
+        lines = content.split('\n').filter(l => l.trim());
+      } else {
+        try {
+          const { execSync } = require('child_process');
+          const out = execSync(`journalctl --user -u openclaw-gateway.service -n ${maxLines} --no-pager -o short-iso`, {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore']
+          });
+          lines = out.split('\n').filter(l => l.trim());
+        } catch (e) {
+          // No journald access or unit missing
+          lines = [];
+        }
+      }
       const entries = lines.slice(-maxLines).reverse().map(line => {
         let level = 'INFO';
         let category = 'system';
