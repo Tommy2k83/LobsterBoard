@@ -1151,15 +1151,11 @@ body[data-mode="edit"] .edit-layout-btn {
   overflow: visible !important;
 }
 
-/* Text-header widgets: hide card chrome when showBorder is false */
+/* Text-header widgets: when showBorder is false, remove only the border (keep normal widget background) */
 .placed-widget[data-type="text-header"][data-show-border="false"] {
-  background: transparent !important;
   border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
 }
 
 .placed-widget[data-type="text-header"][data-show-border="false"] .widget-render {
-  padding: 0 !important;
-  margin: 0 !important;
+  /* keep default padding; text widget controls its own internal padding */
 }
