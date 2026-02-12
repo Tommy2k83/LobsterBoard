@@ -462,7 +462,24 @@ body {
 
 .placed-widget:hover .resize-handle,
 .placed-widget.selected .resize-handle {
-  opacity: 1;
+  opacity: 0.85;
+}
+
+/* Mid-edge handles should be a bit more subtle than corner handles */
+.placed-widget:hover .resize-handle[data-pos="n"],
+.placed-widget:hover .resize-handle[data-pos="s"],
+.placed-widget:hover .resize-handle[data-pos="e"],
+.placed-widget:hover .resize-handle[data-pos="w"],
+.placed-widget.selected .resize-handle[data-pos="n"],
+.placed-widget.selected .resize-handle[data-pos="s"],
+.placed-widget.selected .resize-handle[data-pos="e"],
+.placed-widget.selected .resize-handle[data-pos="w"] {
+  opacity: 0.55;
+}
+
+/* Slight glow on handles for better visibility on dark backgrounds */
+.placed-widget .resize-handle {
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
 }
 
 /* Widget Styles for Canvas Preview */
