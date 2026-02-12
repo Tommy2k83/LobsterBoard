@@ -942,9 +942,62 @@ const WIDGETS = {
     `
   },
 
-  /* DROPPED: OpenAI Usage - requires Admin API key which is not available on all plans
-  'ai-usage-openai': { ... },
-  */
+  'ai-usage-openai': {
+    name: 'GPT Usage',
+    icon: '🟢',
+    category: 'small',
+    description: 'Shows OpenAI API usage costs (today/week/month) via a local proxy endpoint (/api/usage/openai). Requires OPENAI_API_KEY on the server.',
+    defaultWidth: 220,
+    defaultHeight: 140,
+    hasApiKey: true,
+    apiKeyName: 'OPENAI_API_KEY',
+    hideApiKeyVar: true,
+    properties: {
+      title: 'GPT',
+      refreshInterval: 300,
+      apiKeyNote: ''
+    },
+    preview: `<div style="text-align:center;padding:8px;">
+      <div style="font-size:11px;color:#3fb950;">GPT</div>
+      <div style="font-size:18px;">$2.85 today</div>
+      <div style="font-size:10px;color:#6e7681;margin-top:4px;">Week $18.20 · Month $61.00</div>
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🟢 ${props.title || 'GPT'}</span>
+        </div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+          <div class="kpi-value" id="${props.id}-cost" style="color:#3fb950;font-size:22px;">—</div>
+          <div id="${props.id}-period" style="font-size:10px;color:#6e7681;margin-top:2px;text-align:center;"></div>
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      async function update_${props.id.replace(/-/g, '_')}() {
+        try {
+          const res = await fetch('/api/usage/openai');
+          const data = await res.json();
+          const costEl = document.getElementById('${props.id}-cost');
+          const periodEl = document.getElementById('${props.id}-period');
+          if (data.error) {
+            costEl.textContent = '⚠️';
+            costEl.style.fontSize = '18px';
+            periodEl.textContent = data.error.includes('API key') ? 'No API Key' : data.error;
+            return;
+          }
+          costEl.textContent = '$' + (data.cost || 0).toFixed(2) + ' today';
+          const parts = [];
+          if (data.week) parts.push('Week $' + (data.week.cost || 0).toFixed(2));
+          if (data.month) parts.push('Month $' + (data.month.cost || 0).toFixed(2));
+          periodEl.textContent = parts.join(' · ');
+        } catch (e) {
+          document.getElementById('${props.id}-cost').textContent = '—';
+        }
+      }
+      update_${props.id.replace(/-/g, '_')}();
+      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 300) * 1000});
+    `
+  },
 
   /* DROPPED: Gemini - no public usage API available
   'ai-usage-gemini': {
