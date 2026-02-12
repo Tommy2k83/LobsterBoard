@@ -1137,8 +1137,6 @@ body[data-mode="view"] .placed-widget .widget-render {
   height: 48px;
   padding: 0;
 
-  font-size: 22px;
-  font-weight: 700;
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 
@@ -1148,7 +1146,13 @@ body[data-mode="view"] .placed-widget .widget-render {
   /* center icon */
   align-items: center;
   justify-content: center;
-  line-height: 1;
+}
+
+.edit-layout-btn .edit-layout-gear {
+  width: 22px;
+  height: 22px;
+  display: block;
+  color: #fff;
 }
 
 .edit-layout-btn:hover {
