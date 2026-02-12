@@ -966,6 +966,8 @@ const HANDLED_PROPS = new Set([
 const PROP_OPTIONS = {
   period: ['today', 'week', 'month', 'year'],
   units: ['F', 'C'],
+  // used by crypto-price widget
+  currency: ['eur', 'usd', 'gbp', 'chf', 'jpy'],
 };
 
 function renderExtraProperties(widget, template) {
