@@ -1131,12 +1131,24 @@ body[data-mode="view"] .placed-widget .widget-render {
   z-index: 999;
   background: var(--accent-blue);
   color: #fff;
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 8px;
+
+  /* square button */
+  width: 48px;
+  height: 48px;
+  padding: 0;
+
+  font-size: 22px;
+  font-weight: 700;
+  border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+
+  /* hidden by default (view mode toggles it) */
   display: none;
+
+  /* center icon */
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .edit-layout-btn:hover {
@@ -1144,7 +1156,7 @@ body[data-mode="view"] .placed-widget .widget-render {
 }
 
 body[data-mode="view"] .edit-layout-btn {
-  display: block;
+  display: flex;
 }
 
 body[data-mode="edit"] .edit-layout-btn {
