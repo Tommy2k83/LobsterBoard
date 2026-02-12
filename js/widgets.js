@@ -1887,12 +1887,13 @@ const WIDGETS = {
     properties: {
       title: 'Crypto',
       coin: 'bitcoin',
-      currency: 'usd',
+      // default to EUR (Thomas preference)
+      currency: 'eur',
       refreshInterval: 30
     },
     preview: `<div style="text-align:center;padding:8px;">
       <div style="font-size:12px;color:#f7931a;">₿ BTC</div>
-      <div style="font-size:18px;">$43,521</div>
+      <div style="font-size:18px;">€43.521</div>
       <div style="font-size:11px;color:#f85149;">-2.4%</div>
     </div>`,
     generateHtml: (props) => `
@@ -1909,14 +1910,22 @@ const WIDGETS = {
       // Crypto Price Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
-          const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=${props.coin || 'bitcoin'}&vs_currencies=${props.currency || 'usd'}&include_24hr_change=true');
+          const currency = ('${props.currency || 'eur'}' || 'eur').toLowerCase();
+          const symbolMap = { usd: '$', eur: '€', gbp: '£', chf: 'CHF ', jpy: '¥' };
+          const symbol = symbolMap[currency] ?? (currency.toUpperCase() + ' ');
+
+          const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=${props.coin || 'bitcoin'}&vs_currencies=' + currency + '&include_24hr_change=true');
           const data = await res.json();
           const coin = data['${props.coin || 'bitcoin'}'];
-          document.getElementById('${props.id}-price').textContent = '$' + (coin['${props.currency || 'usd'}'] || 0).toLocaleString();
-          const change = coin['${props.currency || 'usd'}_24h_change']?.toFixed(2) || 0;
+
+          const value = coin?.[currency] ?? 0;
+          document.getElementById('${props.id}-price').textContent = symbol + Number(value).toLocaleString('de-DE');
+
+          const change = coin?.[currency + '_24h_change'];
+          const changePct = (typeof change === 'number' ? change : 0).toFixed(2);
           const changeEl = document.getElementById('${props.id}-change');
-          changeEl.textContent = (change >= 0 ? '+' : '') + change + '%';
-          changeEl.className = 'crypto-change ' + (change >= 0 ? 'green' : 'red');
+          changeEl.textContent = (changePct >= 0 ? '+' : '') + changePct + '%';
+          changeEl.className = 'crypto-change ' + (changePct >= 0 ? 'green' : 'red');
         } catch (e) {
           document.getElementById('${props.id}-price').textContent = '—';
         }
