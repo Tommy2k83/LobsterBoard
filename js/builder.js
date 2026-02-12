@@ -587,6 +587,9 @@ function deleteWidget(id) {
 
 function startDragWidget(e, widget) {
   if (e.button !== 0) return;
+  // Prevent text selection while dragging widgets
+  e.preventDefault();
+  document.body.classList.add('no-select');
 
   const el = document.getElementById(widget.id);
   const startX = e.clientX;
@@ -614,6 +617,7 @@ function startDragWidget(e, widget) {
   function onUp() {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    document.body.classList.remove('no-select');
   }
 
   document.addEventListener('mousemove', onMove);
@@ -621,6 +625,10 @@ function startDragWidget(e, widget) {
 }
 
 function startResizeWidget(e, widget, pos = 'se') {
+  // Prevent text selection while resizing widgets
+  e.preventDefault();
+  document.body.classList.add('no-select');
+
   const el = document.getElementById(widget.id);
   const startX = e.clientX;
   const startY = e.clientY;
@@ -724,6 +732,7 @@ function startResizeWidget(e, widget, pos = 'se') {
   function onUp() {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    document.body.classList.remove('no-select');
   }
 
   document.addEventListener('mousemove', onMove);

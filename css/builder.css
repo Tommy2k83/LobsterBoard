@@ -17,6 +17,12 @@
   --font-scale: 1;
 }
 
+/* Prevent annoying text highlighting while dragging/resizing widgets */
+body.no-select,
+body.no-select * {
+  user-select: none !important;
+}
+
 .canvas {
   font-size: calc(14px * var(--font-scale));
 }
