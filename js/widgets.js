@@ -881,19 +881,20 @@ const WIDGETS = {
     name: 'Claude Usage',
     icon: '🟣',
     category: 'small',
-    description: 'Shows Anthropic Claude API usage stats. Requires usage API proxy.',
+    description: 'Shows Anthropic Claude API usage for today. Requires ANTHROPIC_ADMIN_KEY env var on the server.',
     defaultWidth: 220,
     defaultHeight: 120,
     hasApiKey: true,
-    apiKeyName: 'ANTHROPIC_API_KEY',
+    apiKeyName: 'ANTHROPIC_ADMIN_KEY',
     properties: {
       title: 'Claude',
-      refreshInterval: 300
+      refreshInterval: 300,
+      apiKeyNote: 'Requires Admin API key. Get from console.anthropic.com → Settings → Admin API Keys. Set ANTHROPIC_ADMIN_KEY env var.'
     },
     preview: `<div style="text-align:center;padding:8px;">
       <div style="font-size:11px;color:#a371f7;">Claude</div>
       <div style="font-size:20px;">125K</div>
-      <div style="font-size:10px;color:#8b949e;">tokens today</div>
+      <div style="font-size:10px;color:#8b949e;">$4.20 today</div>
     </div>`,
     generateHtml: (props) => `
       <div class="dash-card" id="widget-${props.id}" style="height:100%;">
@@ -901,28 +902,41 @@ const WIDGETS = {
           <span class="dash-card-title">🟣 ${props.title || 'Claude'}</span>
         </div>
         <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <div class="kpi-value" id="${props.id}-tokens">—</div>
+          <div class="kpi-value" id="${props.id}-tokens" style="color:#a371f7;">—</div>
           <div class="kpi-label" id="${props.id}-cost">tokens today</div>
+          <div id="${props.id}-tooltip" style="display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:11px;white-space:nowrap;z-index:100;"></div>
         </div>
       </div>`,
     generateJs: (props) => `
       // Claude Usage Widget: ${props.id}
-      // Requires a backend proxy - Anthropic API doesn't support browser CORS
-      // Set up a proxy endpoint that calls: https://api.anthropic.com/v1/usage
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
-          // Option 1: If using OpenClaw, it tracks usage locally
-          // Option 2: Set up your own proxy endpoint
           const res = await fetch('/api/usage/claude');
-          const json = await res.json();
-          const data = json.data || json;
-          document.getElementById('${props.id}-tokens').textContent = ((data.tokens || 0) / 1000).toFixed(1) + 'K';
-          if (data.cost) {
-            document.getElementById('${props.id}-cost').textContent = '$' + data.cost.toFixed(2) + ' today';
+          const data = await res.json();
+          const tokensEl = document.getElementById('${props.id}-tokens');
+          const costEl = document.getElementById('${props.id}-cost');
+          const tooltipEl = document.getElementById('${props.id}-tooltip');
+          if (data.error) {
+            tokensEl.textContent = '⚠️';
+            tokensEl.style.fontSize = '18px';
+            costEl.textContent = data.error.includes('not set') ? 'No API Key' : data.error;
+            return;
+          }
+          const tokens = data.tokens || 0;
+          tokensEl.textContent = tokens >= 1000000 ? (tokens / 1000000).toFixed(1) + 'M' : tokens >= 1000 ? (tokens / 1000).toFixed(1) + 'K' : tokens.toString();
+          tokensEl.style.fontSize = '';
+          costEl.textContent = '$' + (data.cost || 0).toFixed(2) + ' today';
+          // Build model breakdown tooltip
+          if (data.models && data.models.length) {
+            const lines = data.models.map(m => m.name + ': ' + (m.tokens/1000).toFixed(1) + 'K · $' + m.cost.toFixed(2));
+            tooltipEl.innerHTML = lines.join('<br>');
+            tokensEl.parentElement.style.position = 'relative';
+            tokensEl.parentElement.onmouseenter = () => tooltipEl.style.display = 'block';
+            tokensEl.parentElement.onmouseleave = () => tooltipEl.style.display = 'none';
           }
         } catch (e) {
           document.getElementById('${props.id}-tokens').textContent = '—';
-          document.getElementById('${props.id}-cost').textContent = 'Configure endpoint';
+          document.getElementById('${props.id}-cost').textContent = 'Error';
         }
       }
       update_${props.id.replace(/-/g, '_')}();
@@ -931,49 +945,64 @@ const WIDGETS = {
   },
 
   'ai-usage-openai': {
-    name: 'GPT Usage',
+    name: 'OpenAI Usage',
     icon: '🟢',
     category: 'small',
-    description: 'Shows OpenAI GPT API usage stats. Requires usage API proxy.',
+    description: 'Shows OpenAI API usage costs for today. Requires OPENAI_API_KEY env var on the server.',
     defaultWidth: 220,
     defaultHeight: 120,
     hasApiKey: true,
     apiKeyName: 'OPENAI_API_KEY',
     properties: {
-      title: 'GPT',
-      refreshInterval: 300
+      title: 'OpenAI',
+      refreshInterval: 300,
+      apiKeyNote: 'Requires API key with Usage permission. Set OPENAI_API_KEY env var.'
     },
     preview: `<div style="text-align:center;padding:8px;">
-      <div style="font-size:11px;color:#3fb950;">GPT-4</div>
-      <div style="font-size:20px;">89K</div>
-      <div style="font-size:10px;color:#8b949e;">tokens today</div>
+      <div style="font-size:11px;color:#3fb950;">OpenAI</div>
+      <div style="font-size:20px;">$1.50</div>
+      <div style="font-size:10px;color:#8b949e;">cost today</div>
     </div>`,
     generateHtml: (props) => `
       <div class="dash-card" id="widget-${props.id}" style="height:100%;">
         <div class="dash-card-head">
-          <span class="dash-card-title">🟢 ${props.title || 'GPT'}</span>
+          <span class="dash-card-title">🟢 ${props.title || 'OpenAI'}</span>
         </div>
         <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <div class="kpi-value" id="${props.id}-tokens">—</div>
-          <div class="kpi-label" id="${props.id}-cost">tokens today</div>
+          <div class="kpi-value" id="${props.id}-cost-main" style="color:#3fb950;">—</div>
+          <div class="kpi-label" id="${props.id}-subtitle">cost today</div>
+          <div id="${props.id}-tooltip" style="display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:11px;white-space:nowrap;z-index:100;"></div>
         </div>
       </div>`,
     generateJs: (props) => `
-      // GPT Usage Widget: ${props.id}
-      // Requires a backend proxy - OpenAI API doesn't support browser CORS
-      // Set up a proxy endpoint that calls: https://api.openai.com/v1/usage
+      // OpenAI Usage Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
           const res = await fetch('/api/usage/openai');
-          const json = await res.json();
-          const data = json.data || json;
-          document.getElementById('${props.id}-tokens').textContent = ((data.tokens || 0) / 1000).toFixed(1) + 'K';
-          if (data.cost) {
-            document.getElementById('${props.id}-cost').textContent = '$' + data.cost.toFixed(2) + ' today';
+          const data = await res.json();
+          const costEl = document.getElementById('${props.id}-cost-main');
+          const subEl = document.getElementById('${props.id}-subtitle');
+          const tooltipEl = document.getElementById('${props.id}-tooltip');
+          if (data.error) {
+            costEl.textContent = '⚠️';
+            costEl.style.fontSize = '18px';
+            subEl.textContent = data.error.includes('not set') ? 'No API Key' : data.error;
+            return;
+          }
+          costEl.textContent = '$' + (data.cost || 0).toFixed(2);
+          costEl.style.fontSize = '';
+          subEl.textContent = 'cost today';
+          // Build model breakdown tooltip
+          if (data.models && data.models.length) {
+            const lines = data.models.map(m => m.name + ': $' + m.cost.toFixed(4));
+            tooltipEl.innerHTML = lines.join('<br>');
+            costEl.parentElement.style.position = 'relative';
+            costEl.parentElement.onmouseenter = () => tooltipEl.style.display = 'block';
+            costEl.parentElement.onmouseleave = () => tooltipEl.style.display = 'none';
           }
         } catch (e) {
-          document.getElementById('${props.id}-tokens').textContent = '—';
-          document.getElementById('${props.id}-cost').textContent = 'Configure endpoint';
+          document.getElementById('${props.id}-cost-main').textContent = '—';
+          document.getElementById('${props.id}-subtitle').textContent = 'Error';
         }
       }
       update_${props.id.replace(/-/g, '_')}();
@@ -981,6 +1010,7 @@ const WIDGETS = {
     `
   },
 
+  /* DROPPED: Gemini - no public usage API available
   'ai-usage-gemini': {
     name: 'Gemini Usage',
     icon: '🔵',
@@ -1096,6 +1126,7 @@ const WIDGETS = {
       setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 300) * 1000});
     `
   },
+  END DROPPED: Gemini + Multi */
 
   'ai-cost-tracker': {
     name: 'AI Cost Tracker',

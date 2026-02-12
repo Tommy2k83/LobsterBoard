@@ -642,6 +642,78 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // GET /api/usage/claude - Anthropic Claude usage proxy
+  if (req.method === 'GET' && pathname === '/api/usage/claude') {
+    const apiKey = process.env.ANTHROPIC_ADMIN_KEY;
+    if (!apiKey) { sendJson(res, 200, { error: 'ANTHROPIC_ADMIN_KEY not set', tokens: 0, cost: 0, models: [] }); return; }
+    (async () => {
+      try {
+        const now = new Date();
+        const today = now.toISOString().slice(0, 10);
+        const tomorrow = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
+        const url = `https://api.anthropic.com/v1/organizations/usage_report/messages?starting_at=${today}T00:00:00Z&ending_at=${tomorrow}T00:00:00Z&bucket_width=1d`;
+        const resp = await fetch(url, {
+          headers: { 'anthropic-version': '2023-06-01', 'x-api-key': apiKey }
+        });
+        const data = await resp.json();
+        if (!resp.ok) { sendJson(res, 200, { error: data.error?.message || 'API error', tokens: 0, cost: 0, models: [] }); return; }
+        // Aggregate from data array
+        let totalTokens = 0, totalCost = 0;
+        const modelMap = {};
+        for (const bucket of (data.data || [])) {
+          const input = bucket.input_tokens || 0;
+          const output = bucket.output_tokens || 0;
+          const tokens = input + output;
+          const cost = (bucket.input_cost || 0) + (bucket.output_cost || 0);
+          totalTokens += tokens;
+          totalCost += cost;
+          const model = bucket.model || 'unknown';
+          if (!modelMap[model]) modelMap[model] = { name: model, tokens: 0, cost: 0 };
+          modelMap[model].tokens += tokens;
+          modelMap[model].cost += cost;
+        }
+        sendJson(res, 200, { tokens: totalTokens, cost: totalCost, models: Object.values(modelMap) });
+      } catch (e) {
+        sendJson(res, 200, { error: e.message, tokens: 0, cost: 0, models: [] });
+      }
+    })();
+    return;
+  }
+
+  // GET /api/usage/openai - OpenAI usage proxy
+  if (req.method === 'GET' && pathname === '/api/usage/openai') {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) { sendJson(res, 200, { error: 'OPENAI_API_KEY not set', tokens: 0, cost: 0, models: [] }); return; }
+    (async () => {
+      try {
+        const now = new Date();
+        const todayUnix = Math.floor(new Date(now.toISOString().slice(0, 10) + 'T00:00:00Z').getTime() / 1000);
+        const url = `https://api.openai.com/v1/organization/costs?start_time=${todayUnix}&bucket_width=1d`;
+        const resp = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const data = await resp.json();
+        if (!resp.ok) { sendJson(res, 200, { error: data.error?.message || 'API error', tokens: 0, cost: 0, models: [] }); return; }
+        // Sum costs across buckets
+        let totalCost = 0;
+        const modelMap = {};
+        for (const bucket of (data.data || [])) {
+          for (const lineItem of (bucket.results || [])) {
+            const cost = (lineItem.amount?.value || 0);
+            totalCost += cost;
+            const model = lineItem.line_item || 'unknown';
+            if (!modelMap[model]) modelMap[model] = { name: model, tokens: 0, cost: 0 };
+            modelMap[model].cost += cost;
+          }
+        }
+        sendJson(res, 200, { tokens: 0, cost: totalCost / 100, models: Object.values(modelMap).map(m => ({ ...m, cost: m.cost / 100 })) });
+      } catch (e) {
+        sendJson(res, 200, { error: e.message, tokens: 0, cost: 0, models: [] });
+      }
+    })();
+    return;
+  }
+
   // GET /api/stats - Return cached system stats
   if (req.method === 'GET' && pathname === '/api/stats') {
     sendJson(res, 200, cachedStats);

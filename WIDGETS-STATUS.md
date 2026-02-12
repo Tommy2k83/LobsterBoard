@@ -36,10 +36,10 @@
 **⚠️ Note:** OpenClaw doesn't expose REST API endpoints. These widgets require a custom backend bridge that translates OpenClaw's WebSocket/CLI data to REST JSON. The `server.js` proxy alone is not enough.
 
 ## ⚠️ Needs Backend (Custom Setup Required)
-- [ ] ai-usage-claude - proxy to Anthropic usage API
-- [ ] ai-usage-openai - proxy to OpenAI usage API
-- [ ] ai-usage-gemini - proxy to Google usage API
-- [ ] ai-usage-multi - combines above
+- [x] ai-usage-claude - ✅ Server proxy + widget implemented (ANTHROPIC_ADMIN_KEY)
+- [x] ai-usage-openai - ✅ Server proxy + widget implemented (OPENAI_API_KEY)
+- ~~ai-usage-gemini~~ - ❌ DROPPED (no public usage API)
+- ~~ai-usage-multi~~ - ❌ DROPPED (removed with gemini)
 - [ ] ai-cost-tracker - aggregate costs endpoint
 - [ ] cpu-memory - /api/system (system stats)
 - [ ] disk-usage - /api/system (system stats)
