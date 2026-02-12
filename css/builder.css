@@ -1129,8 +1129,11 @@ body[data-mode="view"] .placed-widget .widget-render {
   bottom: 20px;
   right: 20px;
   z-index: 999;
-  background: var(--accent-blue);
-  color: #fff;
+
+  /* more contrast vs dark UI */
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(88, 166, 255, 0.9);
+  color: var(--accent-blue);
 
   /* square button */
   width: 48px;
@@ -1138,7 +1141,9 @@ body[data-mode="view"] .placed-widget .widget-render {
   padding: 0;
 
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.55),
+    0 0 0 3px rgba(13,17,23,0.35);
 
   /* hidden by default (view mode toggles it) */
   display: none;
@@ -1148,11 +1153,17 @@ body[data-mode="view"] .placed-widget .widget-render {
   justify-content: center;
 }
 
+.edit-layout-btn:hover {
+  background: #2b313a;
+  border-color: rgba(88, 166, 255, 1);
+}
+
 .edit-layout-btn .edit-layout-gear {
   width: 22px;
   height: 22px;
   display: block;
-  color: #fff;
+  color: currentColor;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.35));
 }
 
 .edit-layout-btn:hover {
