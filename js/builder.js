@@ -480,7 +480,10 @@ function renderWidget(widget) {
 
   el.innerHTML = `
     <div class="widget-render">${widgetContent}</div>
-    <div class="resize-handle"></div>
+    <div class="resize-handle" data-corner="se"></div>
+    <div class="resize-handle" data-corner="sw"></div>
+    <div class="resize-handle" data-corner="ne"></div>
+    <div class="resize-handle" data-corner="nw"></div>
   `;
 
   // Apply initial edit mode styles
@@ -512,12 +515,14 @@ function renderWidget(widget) {
     }
   });
 
-  // Resize handle
-  el.querySelector('.resize-handle').addEventListener('mousedown', (e) => {
-    if (state.editMode) {
+  // Resize handles (4 corners)
+  el.querySelectorAll('.resize-handle').forEach((handle) => {
+    handle.addEventListener('mousedown', (e) => {
+      if (!state.editMode) return;
       e.stopPropagation();
-      startResizeWidget(e, widget);
-    }
+      const corner = e.target.dataset.corner || 'se';
+      startResizeWidget(e, widget, corner);
+    });
   });
 
   canvas.appendChild(el);
@@ -611,28 +616,79 @@ function startDragWidget(e, widget) {
   document.addEventListener('mouseup', onUp);
 }
 
-function startResizeWidget(e, widget) {
+function startResizeWidget(e, widget, corner = 'se') {
   const el = document.getElementById(widget.id);
   const startX = e.clientX;
   const startY = e.clientY;
+  const origX = widget.x;
+  const origY = widget.y;
   const origW = widget.width;
   const origH = widget.height;
 
-  function onMove(e) {
-    const dw = (e.clientX - startX) / state.zoom;
-    const dh = (e.clientY - startY) / state.zoom;
+  const minW = 100;
+  const minH = 60;
 
-    widget.width = Math.round((origW + dw) / 20) * 20;
-    widget.height = Math.round((origH + dh) / 20) * 20;
+  const isWest = corner.includes('w');
+  const isNorth = corner.includes('n');
 
-    // Minimum size
-    widget.width = Math.max(100, widget.width);
-    widget.height = Math.max(60, widget.height);
+  function snap(v) {
+    return Math.round(v / 20) * 20;
+  }
 
-    // Keep in bounds
-    widget.width = Math.min(widget.width, state.canvas.width - widget.x);
-    widget.height = Math.min(widget.height, state.canvas.height - widget.y);
+  function onMove(ev) {
+    const dx = (ev.clientX - startX) / state.zoom;
+    const dy = (ev.clientY - startY) / state.zoom;
 
+    let newX = origX;
+    let newY = origY;
+    let newW = origW;
+    let newH = origH;
+
+    if (isWest) {
+      newX = origX + dx;
+      newW = origW - dx;
+    } else {
+      newW = origW + dx;
+    }
+
+    if (isNorth) {
+      newY = origY + dy;
+      newH = origH - dy;
+    } else {
+      newH = origH + dy;
+    }
+
+    // Snap
+    newX = snap(newX);
+    newY = snap(newY);
+    newW = snap(newW);
+    newH = snap(newH);
+
+    // Enforce minimums (adjust x/y if resizing from west/north)
+    if (newW < minW) {
+      if (isWest) newX -= (minW - newW);
+      newW = minW;
+    }
+    if (newH < minH) {
+      if (isNorth) newY -= (minH - newH);
+      newH = minH;
+    }
+
+    // Keep within canvas bounds
+    newX = Math.max(0, Math.min(newX, state.canvas.width - minW));
+    newY = Math.max(0, Math.min(newY, state.canvas.height - minH));
+
+    // Clamp size to remaining space after x/y
+    newW = Math.min(newW, state.canvas.width - newX);
+    newH = Math.min(newH, state.canvas.height - newY);
+
+    widget.x = newX;
+    widget.y = newY;
+    widget.width = newW;
+    widget.height = newH;
+
+    el.style.left = widget.x + 'px';
+    el.style.top = widget.y + 'px';
     el.style.width = widget.width + 'px';
     el.style.height = widget.height + 'px';
 
