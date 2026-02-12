@@ -81,7 +81,7 @@ function setEditMode(enable) {
     const el = document.getElementById(widget.id);
     if (el) {
       el.querySelector('.widget-render').style.pointerEvents = enable ? 'none' : 'auto';
-      el.querySelector('.resize-handle').style.display = enable ? 'block' : 'none';
+      el.querySelectorAll('.resize-handle').forEach(h => h.style.display = enable ? 'block' : 'none');
       if (enable) {
         el.style.cursor = 'move';
         el.classList.add('builder-edit-mode'); // Add class for styling in edit mode
@@ -151,21 +151,12 @@ function stopWidgetScripts() {
 }
 
 function scaleCanvasToFit() {
+  // View mode: show at 1:1 and allow scrolling (instead of scaling down to fit).
   const canvas = document.getElementById('canvas');
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const cw = state.canvas.width;
-  const ch = state.canvas.height;
-  const scale = Math.min(vw / cw, vh / ch);
-  canvas.style.transform = `scale(${scale})`;
+  canvas.style.transform = 'scale(1)';
   canvas.style.transformOrigin = 'top left';
-  // Center if there's leftover space
-  const scaledW = cw * scale;
-  const scaledH = ch * scale;
-  const offsetX = Math.max(0, (vw - scaledW) / 2);
-  const offsetY = Math.max(0, (vh - scaledH) / 2);
-  canvas.style.marginLeft = offsetX + 'px';
-  canvas.style.marginTop = offsetY + 'px';
+  canvas.style.marginLeft = '0px';
+  canvas.style.marginTop = '0px';
 }
 
 // Re-scale on window resize in view mode
