@@ -151,11 +151,19 @@ function stopWidgetScripts() {
 }
 
 function scaleCanvasToFit() {
-  // View mode: show at 1:1 and allow scrolling (instead of scaling down to fit).
+  // View mode: fit canvas to viewport width (no horizontal scroll), allow vertical scroll.
   const canvas = document.getElementById('canvas');
-  canvas.style.transform = 'scale(1)';
+  const vw = window.innerWidth;
+  const cw = state.canvas.width;
+
+  const scale = Math.min(1, vw / cw);
+  canvas.style.transform = `scale(${scale})`;
   canvas.style.transformOrigin = 'top left';
-  canvas.style.marginLeft = '0px';
+
+  // Center horizontally if there's leftover space
+  const scaledW = cw * scale;
+  const offsetX = Math.max(0, (vw - scaledW) / 2);
+  canvas.style.marginLeft = offsetX + 'px';
   canvas.style.marginTop = '0px';
 }
 
