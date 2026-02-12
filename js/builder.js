@@ -643,12 +643,9 @@ function startResizeWidget(e, widget, pos = 'se') {
   const edgeN = pos == 'n';
   const edgeS = pos == 's';
 
-  // Smooth resize while dragging; snap to grid on mouse-up.
   function snap(v) {
     return Math.round(v / 20) * 20;
   }
-
-  let curX = origX, curY = origY, curW = origW, curH = origH;
 
   function onMove(ev) {
     const dx = (ev.clientX - startX) / state.zoom;
@@ -669,6 +666,7 @@ function startResizeWidget(e, widget, pos = 'se') {
       newX = origX + dx;
       newW = origW - dx;
     } else {
+      // east side (se/ne corners)
       newW = origW + dx;
     }
 
@@ -682,8 +680,15 @@ function startResizeWidget(e, widget, pos = 'se') {
       newY = origY + dy;
       newH = origH - dy;
     } else {
+      // south side (se/sw corners)
       newH = origH + dy;
     }
+
+    // Snap
+    newX = snap(newX);
+    newY = snap(newY);
+    newW = snap(newW);
+    newH = snap(newH);
 
     // Enforce minimums (adjust x/y if resizing from west/north)
     if (newW < minW) {
@@ -703,12 +708,10 @@ function startResizeWidget(e, widget, pos = 'se') {
     newW = Math.min(newW, state.canvas.width - newX);
     newH = Math.min(newH, state.canvas.height - newY);
 
-    curX, curY, curW, curH = newX, newY, newW, newH;
-
-    widget.x = curX;
-    widget.y = curY;
-    widget.width = curW;
-    widget.height = curH;
+    widget.x = newX;
+    widget.y = newY;
+    widget.width = newW;
+    widget.height = newH;
 
     el.style.left = widget.x + 'px';
     el.style.top = widget.y + 'px';
@@ -721,28 +724,6 @@ function startResizeWidget(e, widget, pos = 'se') {
   function onUp() {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
-
-    // Snap final geometry
-    let nx = snap(widget.x);
-    let ny = snap(widget.y);
-    let nw = snap(widget.width);
-    let nh = snap(widget.height);
-
-    // Re-apply constraints after snapping
-    nw = Math.max(minW, nw);
-    nh = Math.max(minH, nh);
-    nx = Math.max(0, Math.min(nx, state.canvas.width - minW));
-    ny = Math.max(0, Math.min(ny, state.canvas.height - minH));
-    nw = Math.min(nw, state.canvas.width - nx);
-    nh = Math.min(nh, state.canvas.height - ny);
-
-    widget.x = nx; widget.y = ny; widget.width = nw; widget.height = nh;
-    el.style.left = widget.x + 'px';
-    el.style.top = widget.y + 'px';
-    el.style.width = widget.width + 'px';
-    el.style.height = widget.height + 'px';
-
-    updatePropertyInputs();
   }
 
   document.addEventListener('mousemove', onMove);
