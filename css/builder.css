@@ -1151,11 +1151,12 @@ body[data-mode="edit"] .edit-layout-btn {
   overflow: visible !important;
 }
 
-/* Text-header widgets: when showBorder is false, remove only the border (keep normal widget background) */
-.placed-widget[data-type="text-header"][data-show-border="false"] {
-  border: none !important;
+/* Text-header widgets: match the header color used by dash-card-head (e.g. System Log header) */
+.placed-widget[data-type="text-header"] {
+  background: var(--bg-tertiary) !important;
 }
 
-.placed-widget[data-type="text-header"][data-show-border="false"] .widget-render {
-  /* keep default padding; text widget controls its own internal padding */
+/* When showBorder is false, remove only the border */
+.placed-widget[data-type="text-header"][data-show-border="false"] {
+  border: none !important;
 }
