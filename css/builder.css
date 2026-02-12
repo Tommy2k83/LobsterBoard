@@ -1151,6 +1151,9 @@ body[data-mode="view"] .placed-widget .widget-render {
   /* center icon */
   align-items: center;
   justify-content: center;
+
+  /* make sure the SVG is mathematically centered */
+  padding-top: 1px;
 }
 
 .edit-layout-btn:hover {
@@ -1164,11 +1167,10 @@ body[data-mode="view"] .placed-widget .widget-render {
   display: block;
   color: currentColor;
   filter: drop-shadow(0 1px 0 rgba(0,0,0,0.35));
+  transform: translateY(-0.5px);
 }
 
-.edit-layout-btn:hover {
-  background: #6cb3fa;
-}
+/* (removed duplicate hover rule from earlier version) */
 
 body[data-mode="view"] .edit-layout-btn {
   display: flex;
