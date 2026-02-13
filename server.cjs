@@ -799,6 +799,149 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // GET /api/services - systemd user service status (allowlist)
+  if (req.method === 'GET' && pathname === '/api/services') {
+    const unitsParam = (parsedUrl.searchParams.get('units') || '').trim();
+    const units = unitsParam ? unitsParam.split(',').map(s => s.trim()).filter(Boolean) : [
+      'openclaw-gateway.service',
+      'lobsterboard.service'
+    ];
+
+    // basic allowlist: only query *.service
+    const safeUnits = units.filter(u => /^[a-zA-Z0-9_.@-]+\.service$/.test(u));
+    try {
+      const { execSync } = require('child_process');
+      const results = safeUnits.map(unit => {
+        try {
+          const out = execSync(`systemctl --user show ${unit} -p ActiveState,SubState,ExecMainPID,MemoryCurrent,CPUUsageNSec,ActiveEnterTimestamp,UnitFileState`, {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore']
+          });
+          const obj = { unit };
+          out.split('\n').filter(Boolean).forEach(line => {
+            const idx = line.indexOf('=');
+            if (idx > 0) obj[line.slice(0, idx)] = line.slice(idx + 1);
+          });
+          return obj;
+        } catch (e) {
+          return { unit, error: 'unable_to_query' };
+        }
+      });
+      sendJson(res, 200, { status: 'ok', services: results });
+    } catch (e) {
+      sendError(res, `services error: ${e.message}`);
+    }
+    return;
+  }
+
+  // GET /api/lan/last - parse last nmap scan file (workspace)
+  if (req.method === 'GET' && pathname === '/api/lan/last') {
+    try {
+      const file = path.join(os.homedir(), '.openclaw', 'workspace', 'network_scan_ports.txt');
+      if (!fs.existsSync(file)) {
+        sendJson(res, 200, { status: 'ok', updatedAt: null, hosts: [] });
+        return;
+      }
+      const st = fs.statSync(file);
+      const content = fs.readFileSync(file, 'utf8');
+      const hosts = [];
+      const blocks = content.split(/\n\n+/);
+      let current = null;
+      for (const b of blocks) {
+        const m = b.match(/Nmap scan report for (.+?)\s*\((\d+\.\d+\.\d+\.\d+)\)/);
+        if (m) {
+          current = { name: m[1].trim(), ip: m[2], ports: [] };
+          const portLines = b.split('\n').filter(l => /^\d+\/tcp\s+open\s+/.test(l));
+          for (const pl of portLines) {
+            const parts = pl.trim().split(/\s+/);
+            current.ports.push({ port: parts[0], service: parts[2] || '' });
+          }
+          hosts.push(current);
+        }
+      }
+      sendJson(res, 200, { status: 'ok', updatedAt: new Date(st.mtimeMs).toISOString(), hosts });
+    } catch (e) {
+      sendError(res, `lan last error: ${e.message}`);
+    }
+    return;
+  }
+
+  // GET /api/gmail/stats - last gmail_autocleanup stats (workspace memory)
+  if (req.method === 'GET' && pathname === '/api/gmail/stats') {
+    try {
+      const statsPath = path.join(os.homedir(), '.openclaw', 'workspace', 'memory', 'gmail-autocleanup.json');
+      if (!fs.existsSync(statsPath)) {
+        sendJson(res, 200, { status: 'ok', updatedAt: null, stats: null });
+        return;
+      }
+      const st = fs.statSync(statsPath);
+      const stats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
+      sendJson(res, 200, { status: 'ok', updatedAt: new Date(st.mtimeMs).toISOString(), stats });
+    } catch (e) {
+      sendError(res, `gmail stats error: ${e.message}`);
+    }
+    return;
+  }
+
+  // GET /api/security/status - last clawdefender signature + timestamp
+  if (req.method === 'GET' && pathname === '/api/security/status') {
+    try {
+      const sigPath = path.join(os.homedir(), '.openclaw', 'workspace', '.security', 'clawdefender.lastsig');
+      if (!fs.existsSync(sigPath)) {
+        sendJson(res, 200, { status: 'ok', updatedAt: null, signature: null });
+        return;
+      }
+      const st = fs.statSync(sigPath);
+      const signature = fs.readFileSync(sigPath, 'utf8').trim();
+      sendJson(res, 200, { status: 'ok', updatedAt: new Date(st.mtimeMs).toISOString(), signature });
+    } catch (e) {
+      sendError(res, `security status error: ${e.message}`);
+    }
+    return;
+  }
+
+  // POST /api/actions - quick actions (guarded by LOBSTERBOARD_ACTIONS_KEY)
+  if (req.method === 'POST' && pathname === '/api/actions') {
+    const key = process.env.LOBSTERBOARD_ACTIONS_KEY || '';
+    const provided = req.headers['x-actions-key'] || '';
+    if (!key || provided !== key) {
+      sendResponse(res, 403, 'application/json', JSON.stringify({ status: 'error', error: 'actions_disabled' }));
+      return;
+    }
+    let body = '';
+    req.on('data', chunk => { body += chunk; if (body.length > 10000) req.destroy(); });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const action = (data.action || '').trim();
+        const allowed = new Set([
+          'restart:lobsterboard',
+          'restart:openclaw-gateway',
+          'run:ops-sync',
+          'run:security-scan',
+          'run:gmail-cleanup'
+        ]);
+        if (!allowed.has(action)) {
+          sendJson(res, 200, { status: 'error', error: 'not_allowed' });
+          return;
+        }
+        const { execSync } = require('child_process');
+        let cmd = '';
+        if (action === 'restart:lobsterboard') cmd = 'systemctl --user restart lobsterboard.service';
+        if (action === 'restart:openclaw-gateway') cmd = 'systemctl --user restart openclaw-gateway.service';
+        if (action === 'run:ops-sync') cmd = 'python3 /home/tommy2k83/.openclaw/workspace/scripts/ops_sync.py';
+        if (action === 'run:security-scan') cmd = '/home/tommy2k83/.openclaw/workspace/scripts/security_scan.sh --audit';
+        if (action === 'run:gmail-cleanup') cmd = 'python3 /home/tommy2k83/.openclaw/workspace/gmail_autocleanup.py';
+
+        const out = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 180000 });
+        sendJson(res, 200, { status: 'ok', action, output: out.slice(0, 5000) });
+      } catch (e) {
+        sendJson(res, 200, { status: 'error', error: String(e.message || e), action: null });
+      }
+    });
+    return;
+  }
+
   // GET /api/stats/stream - SSE endpoint for live stats
   if (req.method === 'GET' && pathname === '/api/stats/stream') {
     if (sseClients.size >= 10) {
