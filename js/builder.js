@@ -439,8 +439,17 @@ function createWidget(type, x, y) {
   widget.x = Math.round(widget.x / 20) * 20;
   widget.y = Math.round(widget.y / 20) * 20;
 
-  // Keep in bounds
+  // Keep X in bounds (we don't auto-grow width)
   widget.x = Math.min(widget.x, state.canvas.width - widget.width);
+
+  // Auto-grow canvas height if needed so you can keep adding widgets below
+  const desiredBottom = widget.y + widget.height + 40; // a bit of breathing room
+  if (desiredBottom > state.canvas.height) {
+    state.canvas.height = Math.ceil(desiredBottom / 200) * 200; // grow in chunks
+    updateCanvasSize(true);
+  }
+
+  // Keep Y in bounds (after potential auto-grow)
   widget.y = Math.min(widget.y, state.canvas.height - widget.height);
 
   state.widgets.push(widget);
