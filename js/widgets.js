@@ -2871,6 +2871,7 @@ const WIDGETS = {
             <button class="btn btn-secondary" id="${props.id}-a3">Run Security Scan</button>
             <button class="btn btn-secondary" id="${props.id}-a4">Run Ops Sync</button>
             <button class="btn btn-secondary" id="${props.id}-a5">Run Gmail Cleanup</button>
+            <button class="btn btn-secondary" id="${props.id}-a6">Run LAN Scan</button>
           </div>
           <pre id="${props.id}-out" style="margin:0;white-space:pre-wrap;max-height:120px;overflow:auto;font-size:10px;color:#8b949e;background:var(--bg-primary);padding:8px;border-radius:8px;border:1px solid var(--border);"></pre>
         </div>
@@ -2897,6 +2898,7 @@ const WIDGETS = {
       document.getElementById('${props.id}-a3').onclick=()=>_run('run:security-scan','Run security scan now?');
       document.getElementById('${props.id}-a4').onclick=()=>_run('run:ops-sync','Run ops sync now?');
       document.getElementById('${props.id}-a5').onclick=()=>_run('run:gmail-cleanup','Gmail cleanup moves mail to Trash/Archive. Run now?');
+      document.getElementById('${props.id}-a6').onclick=()=>_run('run:lan-scan','Run LAN scan now? This can be noisy on the network.');
     `
   }
 };
