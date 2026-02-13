@@ -2607,6 +2607,297 @@ const WIDGETS = {
       update_${props.id.replace(/-/g, '_')}();
       setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 60) * 1000});
     `
+  },
+
+  // ─────────────────────────────────────────────
+  // OPS / HOMELAB (Custom)
+  // ─────────────────────────────────────────────
+
+  'openclaw-health': {
+    name: 'OpenClaw Health',
+    icon: '🦞',
+    category: 'small',
+    description: 'Shows status of key services (OpenClaw Gateway, LobsterBoard).',
+    defaultWidth: 260,
+    defaultHeight: 140,
+    hasApiKey: false,
+    properties: {
+      title: 'OpenClaw',
+      refreshInterval: 15,
+      units: 'openclaw-gateway.service,lobsterboard.service'
+    },
+    preview: `<div style="padding:8px;font-size:11px;color:#8b949e;">🦞 Gateway: 🟢 running<br/>🦞 Dashboard: 🟢 running</div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head"><span class="dash-card-title">🦞 ${props.title || 'OpenClaw'}</span></div>
+        <div class="dash-card-body" style="padding:10px 14px;display:flex;flex-direction:column;gap:6px;">
+          <div id="${props.id}-rows" style="font-size:calc(12px * var(--font-scale,1));color:#c9d1d9;">—</div>
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      async function update_${props.id.replace(/-/g,'_')}(){
+        try {
+          const units = (${JSON.stringify(props.units || '')} || 'openclaw-gateway.service,lobsterboard.service');
+          const res = await fetch('/api/services?units=' + encodeURIComponent(units));
+          const json = await res.json();
+          const rows = (json.services || []).map(s => {
+            const state = (s.ActiveState || '').toLowerCase();
+            const dot = state === 'active' ? '🟢' : state ? '🔴' : '⚪';
+            const name = (s.unit || '').replace('.service','');
+            const sub = (s.SubState || '');
+            return '<div style="display:flex;justify-content:space-between;gap:8px;">' +
+              '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + dot + ' ' + name + '</div>' +
+              '<div style="opacity:0.7;font-family:monospace;font-size:11px;">' + sub + '</div>' +
+            '</div>';
+          }).join('');
+          document.getElementById('${props.id}-rows').innerHTML = rows || '<div style="color:#8b949e;">No data</div>';
+        } catch(e){
+          document.getElementById('${props.id}-rows').textContent='Error';
+        }
+      }
+      update_${props.id.replace(/-/g,'_')}();
+      setInterval(update_${props.id.replace(/-/g,'_')}, ${(props.refreshInterval || 15) * 1000});
+    `
+  },
+
+  'security-status': {
+    name: 'Security Status',
+    icon: '🛡️',
+    category: 'small',
+    description: 'Shows last ClawDefender signature timestamp (proxy for last audit).',
+    defaultWidth: 260,
+    defaultHeight: 120,
+    hasApiKey: false,
+    properties: {
+      title: 'Security',
+      endpoint: '/api/security/status',
+      refreshInterval: 60
+    },
+    preview: `<div style="padding:8px;font-size:11px;color:#8b949e;">Last audit: 2h ago</div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head"><span class="dash-card-title">🛡️ ${props.title || 'Security'}</span></div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;justify-content:center;gap:4px;">
+          <div class="kpi-value" id="${props.id}-age" style="font-size:18px;">—</div>
+          <div class="kpi-label" id="${props.id}-sig" style="font-family:monospace;font-size:10px;opacity:0.7;">—</div>
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      function _age(ts){
+        if(!ts) return 'no data';
+        const ms = Date.now() - new Date(ts).getTime();
+        const m = Math.max(0, Math.floor(ms/60000));
+        if(m<60) return m+' min ago';
+        const h=Math.floor(m/60); if(h<48) return h+' h ago';
+        return Math.floor(h/24)+' d ago';
+      }
+      async function update_${props.id.replace(/-/g,'_')}(){
+        try{
+          const res=await fetch(${JSON.stringify(props.endpoint || '/api/security/status')});
+          const j=await res.json();
+          document.getElementById('${props.id}-age').textContent = 'Last: ' + _age(j.updatedAt);
+          document.getElementById('${props.id}-sig').textContent = j.signature ? ('sig ' + j.signature.slice(0,10) + '…') : '—';
+        }catch(e){
+          document.getElementById('${props.id}-age').textContent='Error';
+        }
+      }
+      update_${props.id.replace(/-/g,'_')}();
+      setInterval(update_${props.id.replace(/-/g,'_')}, ${(props.refreshInterval || 60) * 1000});
+    `
+  },
+
+  'gmail-cleanup': {
+    name: 'Gmail Cleanup',
+    icon: '📧',
+    category: 'small',
+    description: 'Shows the last Gmail autocleanup stats (kept/trashed).',
+    defaultWidth: 260,
+    defaultHeight: 140,
+    hasApiKey: false,
+    properties: {
+      title: 'Gmail',
+      endpoint: '/api/gmail/stats',
+      refreshInterval: 120
+    },
+    preview: `<div style="padding:8px;font-size:11px;color:#8b949e;">Kept: 12 · Trashed: 34</div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head"><span class="dash-card-title">📧 ${props.title || 'Gmail'}</span></div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;justify-content:center;gap:4px;">
+          <div class="kpi-value" id="${props.id}-kpi" style="font-size:18px;">—</div>
+          <div class="kpi-label" id="${props.id}-ts" style="font-size:10px;opacity:0.7;">—</div>
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      function _age(ts){
+        if(!ts) return 'no stats yet';
+        const ms = Date.now() - new Date(ts).getTime();
+        const m = Math.max(0, Math.floor(ms/60000));
+        if(m<60) return m+' min ago';
+        const h=Math.floor(m/60); if(h<48) return h+' h ago';
+        return Math.floor(h/24)+' d ago';
+      }
+      async function update_${props.id.replace(/-/g,'_')}(){
+        try{
+          const res=await fetch(${JSON.stringify(props.endpoint || '/api/gmail/stats')});
+          const j=await res.json();
+          const s=j.stats||{};
+          document.getElementById('${props.id}-kpi').textContent = 'Kept ' + (s.kept_labeled_archived ?? '—') + ' · Trash ' + (s.trashed ?? '—');
+          document.getElementById('${props.id}-ts').textContent = 'Last run: ' + _age(j.updatedAt || s.ts);
+        }catch(e){
+          document.getElementById('${props.id}-kpi').textContent='Error';
+        }
+      }
+      update_${props.id.replace(/-/g,'_')}();
+      setInterval(update_${props.id.replace(/-/g,'_')}, ${(props.refreshInterval || 120) * 1000});
+    `
+  },
+
+  'lan-devices': {
+    name: 'LAN / Devices',
+    icon: '🛰️',
+    category: 'large',
+    description: 'Shows the most recent LAN scan results (parsed from last nmap output).',
+    defaultWidth: 520,
+    defaultHeight: 320,
+    hasApiKey: false,
+    properties: {
+      title: 'LAN',
+      endpoint: '/api/lan/last',
+      refreshInterval: 300
+    },
+    preview: `<div style="padding:8px;font-size:11px;color:#8b949e;">openclaw (192.168.2.68): 22</div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🛰️ ${props.title || 'LAN'}</span>
+          <span class="dash-card-badge" id="${props.id}-badge">—</span>
+        </div>
+        <div class="dash-card-body compact-list" id="${props.id}-list"></div>
+      </div>`,
+    generateJs: (props) => `
+      async function update_${props.id.replace(/-/g,'_')}(){
+        try{
+          const res=await fetch(${JSON.stringify(props.endpoint || '/api/lan/last')});
+          const j=await res.json();
+          const hosts=j.hosts||[];
+          document.getElementById('${props.id}-badge').textContent = hosts.length + ' hosts';
+          const fs = 'calc(12px * var(--font-scale, 1))';
+          document.getElementById('${props.id}-list').innerHTML = hosts.slice(0, 50).map(h=>{
+            const ports=(h.ports||[]).map(p=>p.port.split('/')[0]).join(', ');
+            return '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border,#30363d);font-size:'+fs+';">' +
+              '<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (h.name||h.ip) + ' <span style="color:#8b949e">(' + h.ip + ')</span></div>' +
+              '<div style="flex-shrink:0;color:#c9d1d9;font-family:monospace;font-size:11px;">' + (ports||'—') + '</div>' +
+            '</div>';
+          }).join('') || '<div style="color:#8b949e;">No scan data found yet</div>';
+        }catch(e){
+          document.getElementById('${props.id}-list').textContent='Error';
+        }
+      }
+      update_${props.id.replace(/-/g,'_')}();
+      setInterval(update_${props.id.replace(/-/g,'_')}, ${(props.refreshInterval || 300) * 1000});
+    `
+  },
+
+  'service-monitor': {
+    name: 'Service Monitor',
+    icon: '🧰',
+    category: 'large',
+    description: 'Shows systemd user service status for an allowlisted set of units.',
+    defaultWidth: 520,
+    defaultHeight: 260,
+    hasApiKey: false,
+    properties: {
+      title: 'Services',
+      refreshInterval: 15,
+      units: 'openclaw-gateway.service,lobsterboard.service'
+    },
+    preview: `<div style="padding:8px;font-size:11px;color:#8b949e;">openclaw-gateway: active</div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head"><span class="dash-card-title">🧰 ${props.title || 'Services'}</span></div>
+        <div class="dash-card-body compact-list" id="${props.id}-list"></div>
+      </div>`,
+    generateJs: (props) => `
+      async function update_${props.id.replace(/-/g,'_')}(){
+        try{
+          const units = (${JSON.stringify(props.units || '')} || 'openclaw-gateway.service,lobsterboard.service');
+          const res = await fetch('/api/services?units=' + encodeURIComponent(units));
+          const j = await res.json();
+          const fs = 'calc(12px * var(--font-scale, 1))';
+          const list = (j.services||[]).map(s=>{
+            const state=(s.ActiveState||'').toLowerCase();
+            const dot = state==='active' ? '🟢' : state ? '🔴' : '⚪';
+            const name=(s.unit||'').replace('.service','');
+            const since=(s.ActiveEnterTimestamp||'').replace(' UTC','');
+            return '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border,#30363d);font-size:'+fs+';">' +
+              '<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+dot+' '+name+'</div>' +
+              '<div style="flex-shrink:0;font-size:10px;color:#8b949e;font-family:monospace;">'+(since||s.SubState||'')+'</div>'+
+            '</div>';
+          }).join('');
+          document.getElementById('${props.id}-list').innerHTML = list || '<div style="color:#8b949e;">No services</div>';
+        }catch(e){
+          document.getElementById('${props.id}-list').textContent='Error';
+        }
+      }
+      update_${props.id.replace(/-/g,'_')}();
+      setInterval(update_${props.id.replace(/-/g,'_')}, ${(props.refreshInterval || 15) * 1000});
+    `
+  },
+
+  'quick-actions': {
+    name: 'Quick Actions',
+    icon: '⚡',
+    category: 'large',
+    description: 'Run allowlisted actions (restart services, run scans). Requires key in widget API Key field; actions ask for confirmation in UI.',
+    defaultWidth: 520,
+    defaultHeight: 220,
+    hasApiKey: true,
+    apiKeyName: 'LOBSTERBOARD_ACTIONS_KEY',
+    hideApiKeyVar: true,
+    properties: {
+      title: 'Actions',
+      apiKeyNote: 'Set the same key as LOBSTERBOARD_ACTIONS_KEY on the server. Stored in your dashboard config.',
+      refreshInterval: 999999
+    },
+    preview: `<div style="padding:8px;font-size:11px;color:#8b949e;">Restart Gateway · Run Scan</div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head"><span class="dash-card-title">⚡ ${props.title || 'Actions'}</span></div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button class="btn btn-secondary" id="${props.id}-a1">Restart LobsterBoard</button>
+            <button class="btn btn-secondary" id="${props.id}-a2">Restart OpenClaw</button>
+            <button class="btn btn-secondary" id="${props.id}-a3">Run Security Scan</button>
+            <button class="btn btn-secondary" id="${props.id}-a4">Run Ops Sync</button>
+            <button class="btn btn-secondary" id="${props.id}-a5">Run Gmail Cleanup</button>
+          </div>
+          <pre id="${props.id}-out" style="margin:0;white-space:pre-wrap;max-height:120px;overflow:auto;font-size:10px;color:#8b949e;background:var(--bg-primary);padding:8px;border-radius:8px;border:1px solid var(--border);"></pre>
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      async function _run(action, confirmText){
+        if(confirmText && !confirm(confirmText)) return;
+        const outEl=document.getElementById('${props.id}-out');
+        outEl.textContent='Running: '+action+'…';
+        try{
+          const res=await fetch('/api/actions', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','x-actions-key': (${JSON.stringify(props.apiKey || '')} || '')},
+            body: JSON.stringify({action})
+          });
+          const j=await res.json();
+          outEl.textContent = (j.status==='ok' ? 'OK\n' : 'ERROR\n') + (j.output || j.error || '');
+        }catch(e){
+          outEl.textContent='ERROR\n'+e.message;
+        }
+      }
+      document.getElementById('${props.id}-a1').onclick=()=>_run('restart:lobsterboard','Restart LobsterBoard?');
+      document.getElementById('${props.id}-a2').onclick=()=>_run('restart:openclaw-gateway','Restart OpenClaw Gateway?');
+      document.getElementById('${props.id}-a3').onclick=()=>_run('run:security-scan','Run security scan now?');
+      document.getElementById('${props.id}-a4').onclick=()=>_run('run:ops-sync','Run ops sync now?');
+      document.getElementById('${props.id}-a5').onclick=()=>_run('run:gmail-cleanup','Gmail cleanup moves mail to Trash/Archive. Run now?');
+    `
   }
 };
 
