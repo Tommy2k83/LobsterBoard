@@ -374,6 +374,69 @@ export const WIDGETS = {
   // BARS
   // ─────────────────────────────────────────────
 
+  'pages-menu': {
+    name: 'Pages Menu',
+    icon: '📑',
+    category: 'small',
+    description: 'Navigation links to all discovered LobsterBoard pages. Supports vertical or horizontal layout.',
+    defaultWidth: 220,
+    defaultHeight: 200,
+    hasApiKey: false,
+    properties: {
+      title: 'Pages',
+      layout: 'vertical',
+      refreshInterval: 60
+    },
+    preview: `<div style="padding:6px;font-size:11px;color:#8b949e;">
+      <div>📝 Notes</div>
+      <div>📋 Board</div>
+      <div>📅 Calendar</div>
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">📑 ${props.title || 'Pages'}</span>
+        </div>
+        <div class="dash-card-body pages-menu ${props.layout === 'horizontal' ? 'pages-menu-horizontal' : 'pages-menu-vertical'}" id="${props.id}-list">
+          <span class="pages-menu-item">Loading…</span>
+        </div>
+      </div>
+      <style>
+        .pages-menu-vertical { display:flex; flex-direction:column; gap:4px; overflow-y:auto; }
+        .pages-menu-horizontal { display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center; }
+        .pages-menu-item {
+          display:inline-flex; align-items:center; gap:6px;
+          padding:6px 10px; border-radius:6px;
+          background:#21262d; color:#c9d1d9;
+          text-decoration:none; font-size:13px;
+          transition: background .15s, color .15s;
+        }
+        .pages-menu-item:hover { background:#30363d; color:#58a6ff; }
+        .pages-menu-item .pages-menu-icon { font-size:15px; }
+      </style>`,
+    generateJs: (props) => `
+      // Pages Menu Widget: ${props.id}
+      async function update_${props.id.replace(/-/g, '_')}() {
+        try {
+          const res = await fetch('/api/pages');
+          const pages = await res.json();
+          const list = document.getElementById('${props.id}-list');
+          if (!pages.length) { list.innerHTML = '<span class="pages-menu-item">No pages found</span>'; return; }
+          list.innerHTML = pages.map(p =>
+            '<a class="pages-menu-item" href="/pages/' + p.id + '" title="' + (p.description || p.name) + '">' +
+            '<span class="pages-menu-icon">' + (p.icon || '📄') + '</span>' +
+            '<span>' + p.name + '</span></a>'
+          ).join('');
+        } catch (e) {
+          console.error('Pages menu widget error:', e);
+          document.getElementById('${props.id}-list').innerHTML = '<span class="pages-menu-item">Error loading pages</span>';
+        }
+      }
+      update_${props.id.replace(/-/g, '_')}();
+      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 60) * 1000});
+    `
+  },
+
   'topbar': {
     name: 'Top Nav Bar',
     icon: '🔝',

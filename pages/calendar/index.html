@@ -36,6 +36,7 @@
     .month-cell.today .day-num { color: #58a6ff; }
     .ev-chip { font-size: 11px; padding: 1px 4px; margin-bottom: 2px; border-radius: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; border-left: 3px solid; }
     .ev-chip.all-day { background: rgba(88,166,255,0.15); border-left: none; border-radius: 3px; text-align: center; font-weight: 500; }
+    .ev-chip.cron-event { background: rgba(240,136,62,0.15); border-color: #f0883e; font-style: italic; }
     .ev-more { font-size: 10px; color: #8b949e; margin-top: 2px; }
 
     /* Week view */
@@ -120,6 +121,10 @@
       <button class="view-btn active" data-view="month">Month</button>
       <button class="view-btn" data-view="week">Week</button>
       <button class="view-btn" data-view="agenda">Agenda</button>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:12px">
+        <input type="checkbox" class="source-toggle" id="cron-toggle" title="Show Cron Jobs">
+        <label for="cron-toggle" style="font-size:13px;color:#f0883e;cursor:pointer;user-select:none">⏰ Cron Jobs</label>
+      </div>
     </div>
 
     <div class="cal-layout">
@@ -173,6 +178,7 @@
     let sources = [];
     let events = [];
     let loading = false;
+    let showCron = localStorage.getItem('cal-show-cron') !== 'false'; // default on
 
     // --- API helpers ---
     async function api(method, path, body) {
@@ -180,6 +186,19 @@
       if (body) opts.body = JSON.stringify(body);
       const r = await fetch(API + path, opts);
       return r.json();
+    }
+
+    // --- Cron toggle ---
+    const cronToggle = document.getElementById('cron-toggle');
+    cronToggle.checked = showCron;
+    cronToggle.onchange = () => {
+      showCron = cronToggle.checked;
+      localStorage.setItem('cal-show-cron', showCron);
+      render();
+    };
+
+    function filteredEvents() {
+      return showCron ? events : events.filter(e => e.source !== 'Cron Jobs');
     }
 
     // --- Init ---
@@ -239,8 +258,7 @@
 
     function renderSources() {
       const el = document.getElementById('sources-list');
-      // Always show cron
-      let html = `<div class="source-item"><div class="source-dot" style="background:#f0883e"></div><span class="source-name">⏰ Cron Jobs</span></div>`;
+      let html = `<div class="source-item"><div class="source-dot" style="background:#f0883e"></div><span class="source-name">⏰ Cron Jobs</span><input type="checkbox" class="source-toggle" ${showCron ? 'checked' : ''} onchange="cronToggle.checked=this.checked;cronToggle.onchange()"></div>`;
       for (const s of sources) {
         html += `<div class="source-item">
           <div class="source-dot" style="background:${s.color}"></div>
@@ -301,7 +319,7 @@
     function renderDayCell(dayNum, dk, otherMonth) {
       const isToday = dk === todayStr;
       const cls = `month-cell${otherMonth ? ' other-month' : ''}${isToday ? ' today' : ''}`;
-      const dayEvents = (events || []).filter(ev => dayKey(new Date(ev.start)) === dk);
+      const dayEvents = (filteredEvents() || []).filter(ev => dayKey(new Date(ev.start)) === dk);
       const MAX = 3;
       let chips = '';
       const allDay = dayEvents.filter(e => e.allDay);
@@ -309,7 +327,7 @@
       const sorted = [...allDay, ...timed];
       sorted.slice(0, MAX).forEach(ev => {
         const t = ev.allDay ? '' : new Date(ev.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' ';
-        const cls2 = ev.allDay ? 'ev-chip all-day' : 'ev-chip';
+        const cls2 = ev.allDay ? 'ev-chip all-day' : (ev.source === 'Cron Jobs' ? 'ev-chip cron-event' : 'ev-chip');
         chips += `<div class="${cls2}" style="border-color:${ev.color};background:${ev.allDay ? ev.color + '22' : 'transparent'};color:${ev.allDay ? ev.color : '#e6edf3'}" onclick="showPopover(event, ${JSON.stringify(ev).replace(/"/g, '&quot;')})" title="${esc(ev.title)}">${t}${esc(ev.title)}</div>`;
       });
       if (sorted.length > MAX) chips += `<div class="ev-more">+${sorted.length - MAX} more</div>`;
@@ -344,7 +362,7 @@
 
       days.forEach(dd => {
         const dk = dayKey(dd);
-        const dayEvs = events.filter(ev => !ev.allDay && dayKey(new Date(ev.start)) === dk);
+        const dayEvs = filteredEvents().filter(ev => !ev.allDay && dayKey(new Date(ev.start)) === dk);
         html += '<div class="week-day-col">';
         for (let h = startHour; h < endHour; h++) { html += '<div class="week-slot"></div>'; }
         // Position events
@@ -368,7 +386,7 @@
       const el = document.getElementById('cal-view');
       // Group by day
       const grouped = {};
-      events.forEach(ev => {
+      filteredEvents().forEach(ev => {
         const dk = dayKey(new Date(ev.start));
         (grouped[dk] = grouped[dk] || []).push(ev);
       });
