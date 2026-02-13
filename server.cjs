@@ -919,7 +919,8 @@ const server = http.createServer((req, res) => {
           'restart:openclaw-gateway',
           'run:ops-sync',
           'run:security-scan',
-          'run:gmail-cleanup'
+          'run:gmail-cleanup',
+          'run:lan-scan'
         ]);
         if (!allowed.has(action)) {
           sendJson(res, 200, { status: 'error', error: 'not_allowed' });
@@ -932,8 +933,16 @@ const server = http.createServer((req, res) => {
         if (action === 'run:ops-sync') cmd = 'python3 /home/tommy2k83/.openclaw/workspace/scripts/ops_sync.py';
         if (action === 'run:security-scan') cmd = '/home/tommy2k83/.openclaw/workspace/scripts/security_scan.sh --audit';
         if (action === 'run:gmail-cleanup') cmd = 'python3 /home/tommy2k83/.openclaw/workspace/gmail_autocleanup.py';
+        if (action === 'run:lan-scan') {
+          // Loud operation: network scan. Writes to workspace/network_scan_ports.txt for the LAN widget.
+          const outFile = '/home/tommy2k83/.openclaw/workspace/network_scan_ports.txt';
+          // Keep port list tight to reduce noise.
+          const ports = '22,53,80,81,443,445,554,3000,5000,5001,8080,8006,8123,8443,9000,9100,32400,3389';
+          const targets = '192.168.2.0/24';
+          cmd = `nmap -sT -Pn --open -p ${ports} --max-retries 1 --host-timeout 2s -oN ${outFile} ${targets}`;
+        }
 
-        const out = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 180000 });
+        const out = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 300000 });
         sendJson(res, 200, { status: 'ok', action, output: out.slice(0, 5000) });
       } catch (e) {
         sendJson(res, 200, { status: 'error', error: String(e.message || e), action: null });
