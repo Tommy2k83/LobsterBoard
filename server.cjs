@@ -883,6 +883,24 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // GET /api/projects - list current "projects" (what to work on next)
+  if (req.method === 'GET' && pathname === '/api/projects') {
+    try {
+      const p = path.join(os.homedir(), '.openclaw', 'workspace', 'memory', 'projects.json');
+      if (!fs.existsSync(p)) {
+        sendJson(res, 200, { status: 'ok', updatedAt: null, projects: [] });
+        return;
+      }
+      const st = fs.statSync(p);
+      const data = JSON.parse(fs.readFileSync(p, 'utf8'));
+      const projects = Array.isArray(data) ? data : (data.projects || []);
+      sendJson(res, 200, { status: 'ok', updatedAt: new Date(st.mtimeMs).toISOString(), projects });
+    } catch (e) {
+      sendError(res, `projects error: ${e.message}`);
+    }
+    return;
+  }
+
   // GET /api/security/status - last clawdefender signature + timestamp
   if (req.method === 'GET' && pathname === '/api/security/status') {
     try {

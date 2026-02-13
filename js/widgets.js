@@ -2900,6 +2900,63 @@ const WIDGETS = {
       document.getElementById('${props.id}-a5').onclick=()=>_run('run:gmail-cleanup','Gmail cleanup moves mail to Trash/Archive. Run now?');
       document.getElementById('${props.id}-a6').onclick=()=>_run('run:lan-scan','Run LAN scan now? This can be noisy on the network.');
     `
+  },
+
+  'projects': {
+    name: 'Projects',
+    icon: '🗂️',
+    category: 'large',
+    description: 'Shows your current project list so you can quickly choose what to work on next.',
+    defaultWidth: 520,
+    defaultHeight: 320,
+    hasApiKey: false,
+    properties: {
+      title: 'Projects',
+      endpoint: '/api/projects',
+      refreshInterval: 60,
+      maxItems: 20
+    },
+    preview: `<div style="padding:8px;font-size:11px;color:#8b949e;">• BuildingPlanEditor → PDF export verify</div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🗂️ ${props.title || 'Projects'}</span>
+          <span class="dash-card-badge" id="${props.id}-badge">—</span>
+        </div>
+        <div class="dash-card-body compact-list" id="${props.id}-list"></div>
+      </div>`,
+    generateJs: (props) => `
+      function _esc(s){ var d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+      async function update_${props.id.replace(/-/g,'_')}(){
+        try{
+          const res=await fetch(${JSON.stringify(props.endpoint || '/api/projects')});
+          const j=await res.json();
+          const projects=j.projects||[];
+          document.getElementById('${props.id}-badge').textContent = projects.length ? (projects.length + ' items') : '—';
+          const fs='calc(12px * var(--font-scale, 1))';
+          const list = projects.slice(0, ${props.maxItems || 20}).map(p=>{
+            const title=_esc(p.title||p.id);
+            const next=_esc(p.next||'');
+            const status=_esc(p.status||'');
+            const links=(p.links||[]).map(l=>'<a href="'+_esc(l.url)+'" target="_blank" style="color:var(--accent-blue);text-decoration:none;">'+_esc(l.label||'link')+'</a>').join(' · ');
+            const badge = status ? ('<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:var(--bg-primary);border:1px solid var(--border);color:#8b949e;">'+status+'</span>') : '';
+            return '<div style="padding:6px 0;border-bottom:1px solid var(--border,#30363d);font-size:'+fs+';">' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+                '<div style="font-weight:600;color:#c9d1d9;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+title+'</div>' +
+                '<div style="flex-shrink:0;">'+badge+'</div>' +
+              '</div>' +
+              (next ? ('<div style="margin-top:3px;color:#8b949e;">Next: '+next+'</div>') : '') +
+              (links ? ('<div style="margin-top:4px;font-size:10px;opacity:0.9;">'+links+'</div>') : '') +
+            '</div>';
+          }).join('');
+          document.getElementById('${props.id}-list').innerHTML = list || '<div style="color:#8b949e;">No projects yet</div>';
+        }catch(e){
+          document.getElementById('${props.id}-list').textContent='Error';
+        }
+      }
+      update_${props.id.replace(/-/g,'_')}();
+      setInterval(update_${props.id.replace(/-/g,'_')}, ${(props.refreshInterval || 60) * 1000});
+    `
   }
 };
 
