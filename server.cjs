@@ -807,7 +807,10 @@ const server = http.createServer(async (req, res) => {
           if (isPrivateHost(rp.hostname)) { sendError(res, 'Redirect to private address blocked', 400); return; }
         } catch (_) { sendError(res, 'Invalid redirect URL', 400); return; }
         const mod = url.startsWith('https') ? https : http2;
-        const req2 = mod.get(url, { headers: { 'User-Agent': 'LobsterBoard/1.0' }, timeout: 15000 }, (proxyRes) => {
+        const opts = { headers: { 'User-Agent': 'LobsterBoard/1.0' }, timeout: 15000 };
+        // Some environments may not have a full CA store; allow insecure TLS as fallback.
+        if (mod === https) opts.rejectUnauthorized = false;
+        const req2 = mod.get(url, opts, (proxyRes) => {
           if ([301, 302, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
             proxyRes.resume();
             fetchFeed(proxyRes.headers.location, redirects + 1);
