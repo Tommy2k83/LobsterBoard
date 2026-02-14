@@ -4,6 +4,11 @@ All notable changes to LobsterBoard will be documented in this file.
 
 ---
 
+## [0.1.6] - 2026-02-14
+
+### Security
+- Fix SSRF vulnerability in RSS feed proxy — blocks requests to private/internal IPs (127.x, 10.x, 192.168.x, localhost) and validates redirect targets. Thanks to @verkoopjezaak for the report and PR (#1).
+
 ## [Unreleased]
 
 ### Fixed

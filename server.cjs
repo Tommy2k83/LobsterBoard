@@ -16,6 +16,172 @@ const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '127.0.0.1';
 
 // ─────────────────────────────────────────────
+// Pages System — auto-discovery and mounting
+// ─────────────────────────────────────────────
+const PAGES_DIR = path.join(__dirname, 'pages');
+const PAGES_JSON = path.join(__dirname, 'pages.json');
+const DATA_DIR = path.join(__dirname, 'data');
+
+let loadedPages = []; // { id, title, icon, description, order, routes: { 'METHOD /path': handler } }
+
+function loadPages() {
+  const pages = [];
+  let overrides = { pages: {} };
+  try { overrides = JSON.parse(fs.readFileSync(PAGES_JSON, 'utf8')); } catch (_) {}
+
+  let dirs;
+  try { dirs = fs.readdirSync(PAGES_DIR); } catch (_) { return pages; }
+
+  for (const dir of dirs) {
+    if (dir.startsWith('_')) continue;
+    const metaPath = path.join(PAGES_DIR, dir, 'page.json');
+    if (!fs.existsSync(metaPath)) continue;
+
+    let meta;
+    try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (_) { continue; }
+
+    const override = overrides.pages[meta.id] || {};
+    meta.enabled = override.enabled ?? meta.enabled ?? true;
+    meta.order = override.order ?? meta.order ?? 99;
+
+    if (!meta.enabled) continue;
+
+    // Ensure data dir
+    const dataDir = path.join(DATA_DIR, meta.id);
+    fs.mkdirSync(dataDir, { recursive: true });
+
+    // Load API routes if api.cjs (or api.js) exists
+    let apiPath = path.join(PAGES_DIR, dir, 'api.cjs');
+    if (!fs.existsSync(apiPath)) apiPath = path.join(PAGES_DIR, dir, 'api.js');
+    let routes = {};
+    if (fs.existsSync(apiPath)) {
+      try {
+        const ctx = {
+          dataDir,
+          readData: (filename) => JSON.parse(fs.readFileSync(path.join(dataDir, filename), 'utf8')),
+          writeData: (filename, obj) => {
+            fs.mkdirSync(dataDir, { recursive: true });
+            fs.writeFileSync(path.join(dataDir, filename), JSON.stringify(obj, null, 2));
+          }
+        };
+        const pageModule = require(apiPath)(ctx);
+        routes = pageModule.routes || {};
+      } catch (e) {
+        console.error(`Error loading page API for ${meta.id}:`, e.message);
+      }
+    }
+
+    pages.push({
+      id: meta.id,
+      title: meta.title,
+      icon: meta.icon,
+      description: meta.description,
+      order: meta.order,
+      nav: meta.nav !== false,
+      routes
+    });
+  }
+
+  return pages.sort((a, b) => a.order - b.order);
+}
+
+// Parse a route pattern like 'GET /items/:id' into a regex + param names
+function compileRoute(pattern) {
+  const [method, ...pathParts] = pattern.split(' ');
+  const routePath = pathParts.join(' ');
+  const paramNames = [];
+
+  // Handle wildcard * segments
+  let regexStr = routePath.replace(/\*/g, '(.+)').replace(/:([^/]+)/g, (_, name) => {
+    paramNames.push(name);
+    return '([^/]+)';
+  });
+
+  // Track if wildcard was used
+  const hasWildcard = routePath.includes('*');
+  if (hasWildcard && !paramNames.includes('*')) {
+    // Insert wildcard param name at the position it appears
+    const parts = routePath.split('/');
+    let wildcardIdx = 0;
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === '*') {
+        paramNames.splice(wildcardIdx, 0, '*');
+        break;
+      }
+      if (parts[i].startsWith(':')) wildcardIdx++;
+      if (parts[i] === '*') break;
+    }
+  }
+
+  return { method: method.toUpperCase(), regex: new RegExp('^' + regexStr + '$'), paramNames };
+}
+
+// Try to match a request against page routes
+function matchPageRoute(pages, method, pathname, parsedUrl) {
+  // Check /api/pages listing endpoint
+  if (method === 'GET' && pathname === '/api/pages') {
+    return { type: 'list' };
+  }
+
+  // Check /pages/<id> for static file serving
+  const pagesMatch = pathname.match(/^\/pages\/([^/]+)(\/.*)?$/);
+  if (pagesMatch) {
+    const pageId = pagesMatch[1];
+    if (pageId === '_shared') {
+      return { type: 'static', filePath: path.join(PAGES_DIR, '_shared', (pagesMatch[2] || '/').slice(1)) };
+    }
+    const page = pages.find(p => p.id === pageId);
+    if (page) {
+      const subPath = pagesMatch[2] || '/';
+      if (subPath === '/' || subPath === '') {
+        return { type: 'static', filePath: path.join(PAGES_DIR, pageId, 'index.html') };
+      }
+      return { type: 'static', filePath: path.join(PAGES_DIR, pageId, subPath.slice(1)) };
+    }
+  }
+
+  // Check /api/pages/<id>/* for API routes
+  const apiMatch = pathname.match(/^\/api\/pages\/([^/]+)(\/.*)?$/);
+  if (apiMatch) {
+    const pageId = apiMatch[1];
+    const page = pages.find(p => p.id === pageId);
+    if (!page) return null;
+
+    const subPath = apiMatch[2] || '/';
+    const routeEntries = Object.entries(page.routes);
+
+    // Sort routes: specific before wildcard, longer before shorter
+    routeEntries.sort((a, b) => {
+      const aHasWild = a[0].includes('*');
+      const bHasWild = b[0].includes('*');
+      if (aHasWild !== bHasWild) return aHasWild ? 1 : -1;
+      return b[0].length - a[0].length;
+    });
+
+    for (const [pattern, handler] of routeEntries) {
+      const compiled = compileRoute(pattern);
+      if (compiled.method !== method) continue;
+      const match = subPath.match(compiled.regex);
+      if (match) {
+        const params = {};
+        compiled.paramNames.forEach((name, i) => {
+          params[name] = decodeURIComponent(match[i + 1]);
+        });
+        const query = {};
+        parsedUrl.searchParams.forEach((v, k) => { query[k] = v; });
+        return { type: 'api', handler, params, query, pageId };
+      }
+    }
+  }
+
+  return null;
+}
+
+// Initialize pages
+loadedPages = loadPages();
+console.log(`📄 Loaded ${loadedPages.length} page(s): ${loadedPages.map(p => p.icon + ' ' + p.title).join(', ') || 'none'}`);
+
+// ─────────────────────────────────────────────
 // System Stats Collection (cached, tiered intervals)
 // ─────────────────────────────────────────────
 const cachedStats = {
@@ -183,7 +349,7 @@ function parseIcal(text, maxEvents) {
   return events.slice(0, maxEvents);
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = parsedUrl.pathname;
 
@@ -248,14 +414,62 @@ const server = http.createServer((req, res) => {
   }
 
   // CORS preflight for /api/*
-  if (req.method === 'OPTIONS' && pathname.startsWith('/api/')) {
+  if (req.method === 'OPTIONS' && (pathname.startsWith('/api/') || pathname === '/api/pages')) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type'
     });
     res.end();
     return;
+  }
+
+  // ── Pages system routing ──
+  const pageMatch = matchPageRoute(loadedPages, req.method, pathname, parsedUrl);
+  if (pageMatch) {
+    if (pageMatch.type === 'list') {
+      sendJson(res, 200, loadedPages.filter(p => p.nav !== false).map(p => ({ id: p.id, title: p.title, icon: p.icon, description: p.description, order: p.order })));
+      return;
+    }
+    if (pageMatch.type === 'static') {
+      const resolved = path.resolve(pageMatch.filePath);
+      if (!resolved.startsWith(path.resolve(PAGES_DIR))) {
+        sendResponse(res, 403, 'text/plain', 'Forbidden');
+        return;
+      }
+      const ext = path.extname(resolved).toLowerCase();
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      fs.readFile(resolved, (err, data) => {
+        if (err) { sendResponse(res, 404, 'text/plain', 'Not Found'); return; }
+        sendResponse(res, 200, contentType, data);
+      });
+      return;
+    }
+    if (pageMatch.type === 'api') {
+      // Parse body for non-GET requests
+      if (req.method === 'GET') {
+        try {
+          const result = await pageMatch.handler(req, res, { query: pageMatch.query, body: {}, params: pageMatch.params });
+          if (result !== undefined && !res.writableEnded) sendJson(res, res.statusCode || 200, result);
+        } catch (e) { sendError(res, e.message); }
+        return;
+      }
+      // Parse JSON body
+      const MAX_BODY = 1024 * 1024;
+      let body = '';
+      let overflow = false;
+      req.on('data', chunk => { body += chunk.toString(); if (body.length > MAX_BODY) { overflow = true; req.destroy(); } });
+      req.on('end', async () => {
+        if (overflow) { sendError(res, 'Request body too large', 413); return; }
+        let parsed = {};
+        try { if (body) parsed = JSON.parse(body); } catch (_) {}
+        try {
+          const result = await pageMatch.handler(req, res, { query: pageMatch.query, body: parsed, params: pageMatch.params });
+          if (result !== undefined && !res.writableEnded) sendJson(res, res.statusCode || 200, result);
+        } catch (e) { sendError(res, e.message); }
+      });
+      return;
+    }
   }
 
   // GET/POST /api/todos - Read/write todo list
@@ -560,11 +774,38 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && pathname === '/api/rss') {
     const feedUrl = parsedUrl.searchParams.get('url');
     if (!feedUrl) { sendError(res, 'Missing url parameter', 400); return; }
+
+    // Validate URL: only http/https, block private/internal IPs (SSRF protection)
+    function isPrivateHost(hostname) {
+      const patterns = [
+        /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
+        /^169\.254\./, /^0\./, /^localhost$/i, /^\[?::1\]?$/, /^\[?fc/i, /^\[?fd/i
+      ];
+      return patterns.some(p => p.test(hostname));
+    }
+    try {
+      const parsed = new URL(feedUrl);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        sendError(res, 'Only http and https URLs are allowed', 400); return;
+      }
+      if (isPrivateHost(parsed.hostname)) {
+        sendError(res, 'URLs pointing to private/internal addresses are not allowed', 400); return;
+      }
+    } catch (urlErr) {
+      sendError(res, 'Invalid URL', 400); return;
+    }
+
     try {
       const https = require('https');
       const http2 = require('http');
       function fetchFeed(url, redirects) {
         if (redirects > 3) { sendError(res, 'Too many redirects'); return; }
+        // Validate each URL (including redirects) against SSRF
+        try {
+          const rp = new URL(url);
+          if (rp.protocol !== 'http:' && rp.protocol !== 'https:') { sendError(res, 'Redirect to disallowed scheme', 400); return; }
+          if (isPrivateHost(rp.hostname)) { sendError(res, 'Redirect to private address blocked', 400); return; }
+        } catch (_) { sendError(res, 'Invalid redirect URL', 400); return; }
         const mod = url.startsWith('https') ? https : http2;
         const req2 = mod.get(url, { headers: { 'User-Agent': 'LobsterBoard/1.0' }, timeout: 15000 }, (proxyRes) => {
           if ([301, 302, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {

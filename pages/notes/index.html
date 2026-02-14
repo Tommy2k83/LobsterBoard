@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LobsterBoard - Notes</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem; }
+    .page-header h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #8b949e; font-size: 0.85rem; }
+
+    .notes-layout { display: flex; gap: 1.25rem; margin-top: 1rem; }
+    .notes-toolbar { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; }
+    .notes-toolbar input[type="text"] {
+      flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+      padding: 8px 12px; color: #e6edf3; font-size: 13px; outline: none;
+    }
+    .notes-toolbar input:focus { border-color: #58a6ff; }
+    .btn-primary {
+      background: #58a6ff; color: #0d1117; border: none; border-radius: 6px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .btn-primary:hover { background: #79b8ff; }
+    .btn-secondary {
+      background: transparent; color: #8b949e; border: 1px solid #30363d; border-radius: 6px;
+      padding: 8px 16px; font-size: 13px; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #161b22; color: #e6edf3; }
+    .btn-danger {
+      background: transparent; color: #f85149; border: 1px solid #f8514933; border-radius: 6px;
+      padding: 6px 14px; font-size: 13px; cursor: pointer;
+    }
+    .btn-danger:hover { background: #f8514922; }
+
+    .notes-sidebar {
+      width: 220px; min-width: 220px; background: #161b22; border: 1px solid #30363d;
+      border-radius: 8px; padding: 1rem; align-self: flex-start; position: sticky; top: 1rem;
+    }
+    .sidebar-section { margin-bottom: 1rem; }
+    .sidebar-section h3 { font-size: 11px; text-transform: uppercase; color: #8b949e; margin: 0 0 0.5rem 0; letter-spacing: 0.5px; }
+    .sidebar-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px 8px; border-radius: 5px; color: #e6edf3; font-size: 13px; cursor: pointer; transition: background 0.1s;
+    }
+    .sidebar-item:hover { background: #21262d; }
+    .sidebar-item.active { background: #58a6ff22; color: #58a6ff; }
+    .sidebar-count { font-size: 11px; color: #8b949e; background: #21262d; padding: 1px 6px; border-radius: 10px; }
+    .active-filters { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+    .filter-pill {
+      display: inline-flex; align-items: center; gap: 4px; background: #58a6ff22; color: #58a6ff;
+      border: 1px solid #58a6ff44; border-radius: 12px; padding: 2px 8px; font-size: 11px; cursor: pointer;
+    }
+    .filter-pill:hover { background: #58a6ff33; }
+
+    .notes-main { flex: 1; min-width: 0; }
+    .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+
+    .note-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem;
+      cursor: pointer; transition: border-color 0.15s, transform 0.1s; position: relative;
+    }
+    .note-card:hover { border-color: #58a6ff; transform: translateY(-1px); }
+    .note-card.pinned { border-left: 3px solid #d2a8ff; }
+    .note-card-title { font-size: 15px; font-weight: 600; color: #e6edf3; margin: 0 0 0.4rem 0; display: flex; align-items: center; gap: 6px; }
+    .pin-icon { color: #d2a8ff; font-size: 13px; }
+    .note-card-body {
+      font-size: 13px; color: #8b949e; line-height: 1.5; margin-bottom: 0.6rem;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    }
+    .note-card-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem; }
+    .note-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .tag-pill { font-size: 11px; padding: 1px 7px; border-radius: 10px; font-weight: 500; }
+    .tag-0 { background: #58a6ff22; color: #58a6ff; }
+    .tag-1 { background: #3fb95022; color: #3fb950; }
+    .tag-2 { background: #d2a8ff22; color: #d2a8ff; }
+    .tag-3 { background: #d2992222; color: #e3b341; }
+    .tag-4 { background: #f8514922; color: #f85149; }
+    .cat-badge { font-size: 11px; color: #8b949e; background: #21262d; padding: 2px 8px; border-radius: 10px; }
+    .note-date { font-size: 11px; color: #484f58; }
+
+    .empty-state { text-align: center; padding: 4rem 2rem; color: #8b949e; grid-column: 1 / -1; }
+    .empty-state .big-emoji { font-size: 4rem; margin-bottom: 1rem; }
+
+    .modal-backdrop {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+      width: 640px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 1.5rem;
+    }
+    .modal h2 { margin: 0 0 1rem 0; font-size: 18px; color: #e6edf3; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+      padding: 8px 12px; color: #e6edf3; font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #58a6ff; }
+    .form-group textarea { min-height: 180px; resize: vertical; }
+    .form-row { display: flex; gap: 1rem; }
+    .form-row .form-group { flex: 1; }
+    .pin-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #8b949e; }
+    .pin-toggle input { width: auto; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+    .preview-toggle { font-size: 12px; color: #58a6ff; cursor: pointer; float: right; margin-bottom: 4px; }
+    .preview-toggle:hover { text-decoration: underline; }
+    .md-preview {
+      background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px;
+      min-height: 180px; color: #e6edf3; font-size: 13px; line-height: 1.6;
+    }
+    .md-preview h1, .md-preview h2, .md-preview h3 { color: #e6edf3; margin: 0.5em 0 0.3em; }
+    .md-preview h1 { font-size: 1.4em; } .md-preview h2 { font-size: 1.2em; } .md-preview h3 { font-size: 1.05em; }
+    .md-preview code { background: #21262d; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
+    .md-preview pre { background: #21262d; padding: 10px; border-radius: 6px; overflow-x: auto; }
+    .md-preview pre code { background: none; padding: 0; }
+    .md-preview a { color: #58a6ff; }
+    .md-preview ul, .md-preview ol { padding-left: 1.5em; }
+    .md-preview blockquote { border-left: 3px solid #30363d; padding-left: 12px; color: #8b949e; margin: 0.5em 0; }
+
+    .view-modal .modal { width: 720px; }
+    .view-title { font-size: 22px; font-weight: 700; color: #e6edf3; margin: 0 0 0.5rem; display: flex; align-items: center; gap: 8px; }
+    .view-meta {
+      display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;
+      margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #30363d;
+    }
+    .view-body { line-height: 1.7; font-size: 14px; color: #e6edf3; }
+    .view-actions { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+
+    @media (max-width: 900px) {
+      .notes-sidebar { display: none; }
+      .notes-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="page-nav"></nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>📝 Knowledge Base</h1>
+      <p class="subtitle" id="notes-count">Loading...</p>
+    </header>
+
+    <div class="notes-toolbar">
+      <input type="text" id="search-input" placeholder="Search notes..." autocomplete="off">
+      <button class="btn-primary" onclick="openAddModal()">+ New Note</button>
+    </div>
+
+    <div class="active-filters" id="active-filters"></div>
+
+    <div class="notes-layout">
+      <aside class="notes-sidebar" id="sidebar">
+        <div class="sidebar-section">
+          <h3>Categories</h3>
+          <div id="sidebar-categories"></div>
+        </div>
+        <div class="sidebar-section">
+          <h3>Tags</h3>
+          <div id="sidebar-tags"></div>
+        </div>
+      </aside>
+      <div class="notes-main">
+        <div class="notes-grid" id="notes-grid">
+          <div class="empty-state">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="edit-modal">
+    <div class="modal">
+      <h2 id="modal-title">New Note</h2>
+      <input type="hidden" id="note-id">
+      <div class="form-group"><label>Title</label><input type="text" id="note-title" placeholder="Note title"></div>
+      <div class="form-group">
+        <span class="preview-toggle" id="preview-btn" onclick="togglePreview()">Preview</span>
+        <label>Body</label>
+        <textarea id="note-body" placeholder="Write in markdown..."></textarea>
+        <div class="md-preview" id="note-preview" style="display:none"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tags (comma-separated)</label><input type="text" id="note-tags" placeholder="tag1, tag2"></div>
+        <div class="form-group"><label>Category</label><select id="note-category"></select></div>
+      </div>
+      <label class="pin-toggle"><input type="checkbox" id="note-pinned"> 📌 Pin this note</label>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveNote()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop view-modal" id="view-modal">
+    <div class="modal">
+      <div class="view-title" id="view-title"></div>
+      <div class="view-meta" id="view-meta"></div>
+      <div class="view-body md-preview" id="view-body"></div>
+      <div class="view-actions" id="view-actions"></div>
+    </div>
+  </div>
+
+  <script src="/pages/_shared/nav.js"></script>
+  <script>
+    const API = '/api/pages/notes';
+    let allNotes = [];
+    let allTags = {};
+    let categories = [];
+    let filterCategory = null;
+    let filterTag = null;
+    const TAG_COLORS = ['tag-0','tag-1','tag-2','tag-3','tag-4'];
+
+    function tagColor(tag) {
+      let h = 0;
+      for (let i = 0; i < tag.length; i++) h = ((h << 5) - h + tag.charCodeAt(i)) | 0;
+      return TAG_COLORS[Math.abs(h) % TAG_COLORS.length];
+    }
+
+    function renderMd(text) {
+      if (!text) return '';
+      let html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/```([\s\S]*?)```/g, (_, c) => '<pre><code>' + c.trim() + '</code></pre>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+          if (/^https?:\/\//i.test(url)) return `<a href="${url}" target="_blank">${label}</a>`;
+          return `[${label}](${url})`;
+        })
+        .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+        .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+        .replace(/\n/g, '<br>');
+      html = html.replace(/((?:<li>.*?<\/li><br>?)+)/g, (m) => '<ul>' + m.replace(/<br>/g, '') + '</ul>');
+      return html;
+    }
+
+    function truncate(text, len) {
+      if (!text) return '';
+      const plain = text.replace(/[#*`\[\]()>-]/g, '').trim();
+      return plain.length > len ? plain.slice(0, len) + '…' : plain;
+    }
+
+    function relDate(iso) {
+      const d = new Date(iso), now = new Date(), diff = now - d;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff/60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
+      if (diff < 604800000) return Math.floor(diff/86400000) + 'd ago';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    async function loadNotes() {
+      const [notesRes, tagsRes, catsRes] = await Promise.all([
+        fetch(API).then(r => r.json()),
+        fetch(API + '/tags').then(r => r.json()),
+        fetch(API + '/categories').then(r => r.json())
+      ]);
+      allNotes = notesRes;
+      allTags = tagsRes;
+      categories = catsRes;
+      renderSidebar();
+      renderNotes();
+      populateCategorySelect();
+    }
+
+    function getFiltered() {
+      let notes = [...allNotes];
+      const q = document.getElementById('search-input').value.toLowerCase();
+      if (q) notes = notes.filter(n => (n.title||'').toLowerCase().includes(q) || (n.body||'').toLowerCase().includes(q));
+      if (filterCategory) notes = notes.filter(n => n.category === filterCategory);
+      if (filterTag) notes = notes.filter(n => (n.tags||[]).includes(filterTag));
+      return notes;
+    }
+
+    function renderNotes() {
+      const notes = getFiltered();
+      const grid = document.getElementById('notes-grid');
+      document.getElementById('notes-count').textContent = `${allNotes.length} note${allNotes.length !== 1 ? 's' : ''}`;
+      if (notes.length === 0) {
+        grid.innerHTML = allNotes.length === 0
+          ? '<div class="empty-state"><div class="big-emoji">📝</div><p>No notes yet. Create your first note!</p></div>'
+          : '<div class="empty-state"><p>No notes match your filters.</p></div>';
+        return;
+      }
+      grid.innerHTML = notes.map(n => `
+        <div class="note-card${n.pinned ? ' pinned' : ''}" onclick="viewNote('${n.id}')">
+          <div class="note-card-title">${n.pinned ? '<span class="pin-icon">📌</span>' : ''}${esc(n.title)}</div>
+          <div class="note-card-body">${esc(truncate(n.body, 150))}</div>
+          <div class="note-card-meta">
+            <div class="note-tags">
+              ${(n.tags||[]).map(t => `<span class="tag-pill ${tagColor(t)}">${esc(t)}</span>`).join('')}
+              <span class="cat-badge">${esc(n.category||'General')}</span>
+            </div>
+            <span class="note-date">${relDate(n.updatedAt)}</span>
+          </div>
+        </div>`).join('');
+    }
+
+    function renderSidebar() {
+      const catCounts = {};
+      allNotes.forEach(n => { catCounts[n.category] = (catCounts[n.category]||0)+1; });
+      document.getElementById('sidebar-categories').innerHTML =
+        `<div class="sidebar-item${!filterCategory?' active':''}" onclick="setFilter('category',null)"><span>All Notes</span><span class="sidebar-count">${allNotes.length}</span></div>` +
+        categories.map(c => `<div class="sidebar-item${filterCategory===c?' active':''}" onclick="setFilter('category','${c}')"><span>${c}</span><span class="sidebar-count">${catCounts[c]||0}</span></div>`).join('');
+
+      const tags = Object.entries(allTags).sort((a,b) => b[1]-a[1]);
+      document.getElementById('sidebar-tags').innerHTML = tags.length === 0 ? '<div style="font-size:12px;color:#484f58">No tags yet</div>' :
+        tags.map(([t,c]) => `<div class="sidebar-item${filterTag===t?' active':''}" onclick="setFilter('tag','${t}')"><span class="tag-pill ${tagColor(t)}">${esc(t)}</span><span class="sidebar-count">${c}</span></div>`).join('');
+
+      let pills = '';
+      if (filterCategory) pills += `<span class="filter-pill" onclick="setFilter('category',null)">📁 ${filterCategory} ✕</span>`;
+      if (filterTag) pills += `<span class="filter-pill" onclick="setFilter('tag',null)">🏷 ${filterTag} ✕</span>`;
+      document.getElementById('active-filters').innerHTML = pills;
+    }
+
+    function setFilter(type, val) {
+      if (type === 'category') filterCategory = val;
+      if (type === 'tag') filterTag = val;
+      renderSidebar(); renderNotes();
+    }
+
+    function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function populateCategorySelect() {
+      document.getElementById('note-category').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function openAddModal() {
+      document.getElementById('modal-title').textContent = 'New Note';
+      document.getElementById('note-id').value = '';
+      document.getElementById('note-title').value = '';
+      document.getElementById('note-body').value = '';
+      document.getElementById('note-tags').value = '';
+      document.getElementById('note-category').value = 'General';
+      document.getElementById('note-pinned').checked = false;
+      document.getElementById('note-body').style.display = '';
+      document.getElementById('note-preview').style.display = 'none';
+      document.getElementById('preview-btn').textContent = 'Preview';
+      document.getElementById('edit-modal').classList.add('show');
+    }
+
+    function openEditModal(note) {
+      document.getElementById('modal-title').textContent = 'Edit Note';
+      document.getElementById('note-id').value = note.id;
+      document.getElementById('note-title').value = note.title;
+      document.getElementById('note-body').value = note.body;
+      document.getElementById('note-tags').value = (note.tags||[]).join(', ');
+      document.getElementById('note-category').value = note.category || 'General';
+      document.getElementById('note-pinned').checked = note.pinned;
+      document.getElementById('note-body').style.display = '';
+      document.getElementById('note-preview').style.display = 'none';
+      document.getElementById('preview-btn').textContent = 'Preview';
+      document.getElementById('edit-modal').classList.add('show');
+    }
+
+    function closeEditModal() { document.getElementById('edit-modal').classList.remove('show'); }
+
+    function togglePreview() {
+      const ta = document.getElementById('note-body');
+      const pv = document.getElementById('note-preview');
+      const btn = document.getElementById('preview-btn');
+      if (ta.style.display !== 'none') {
+        pv.innerHTML = renderMd(ta.value); ta.style.display = 'none'; pv.style.display = ''; btn.textContent = 'Edit';
+      } else {
+        ta.style.display = ''; pv.style.display = 'none'; btn.textContent = 'Preview';
+      }
+    }
+
+    async function saveNote() {
+      const id = document.getElementById('note-id').value;
+      const data = {
+        title: document.getElementById('note-title').value || 'Untitled',
+        body: document.getElementById('note-body').value,
+        tags: document.getElementById('note-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+        category: document.getElementById('note-category').value,
+        pinned: document.getElementById('note-pinned').checked
+      };
+      if (id) {
+        await fetch(`${API}/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      } else {
+        await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      }
+      closeEditModal();
+      await loadNotes();
+    }
+
+    function viewNote(id) {
+      const note = allNotes.find(n => n.id === id);
+      if (!note) return;
+      document.getElementById('view-title').innerHTML = (note.pinned ? '<span class="pin-icon">📌</span> ' : '') + esc(note.title);
+      document.getElementById('view-meta').innerHTML =
+        `<span class="cat-badge">${esc(note.category)}</span>` +
+        (note.tags||[]).map(t => `<span class="tag-pill ${tagColor(t)}">${esc(t)}</span>`).join('') +
+        `<span class="note-date">${new Date(note.updatedAt).toLocaleString()}</span>`;
+      document.getElementById('view-body').innerHTML = renderMd(note.body);
+      document.getElementById('view-actions').innerHTML =
+        `<button class="btn-secondary" onclick="closeViewModal();openEditModal(allNotes.find(n=>n.id==='${id}'))">✏️ Edit</button>
+         <button class="btn-danger" onclick="deleteNote('${id}')">🗑 Delete</button>
+         <span style="flex:1"></span>
+         <button class="btn-secondary" onclick="closeViewModal()">Close</button>`;
+      document.getElementById('view-modal').classList.add('show');
+    }
+
+    function closeViewModal() { document.getElementById('view-modal').classList.remove('show'); }
+
+    async function deleteNote(id) {
+      if (!confirm('Delete this note?')) return;
+      await fetch(`${API}/${id}`, { method: 'DELETE' });
+      closeViewModal();
+      await loadNotes();
+    }
+
+    document.getElementById('search-input').addEventListener('input', renderNotes);
+    document.getElementById('edit-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+    document.getElementById('view-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeViewModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeEditModal(); closeViewModal(); } });
+    document.addEventListener('DOMContentLoaded', loadNotes);
+  </script>
+</body>
+</html>

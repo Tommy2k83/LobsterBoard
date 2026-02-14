@@ -13,7 +13,7 @@
   <header class="builder-header">
     <div class="header-left">
       <img src="lobsterboard-logo-final.png" alt="LobsterBoard" class="logo-img">
-      <nav class="header-nav">
+      <nav class="header-nav" id="header-nav">
         <a href="changelog.html" class="nav-link">Changelog</a>
         <a href="https://github.com/curbob/LobsterBoard" target="_blank" class="nav-link">GitHub</a>
       </nav>
@@ -603,6 +603,13 @@
           </div>
           <div id="prop-quicklinks-items" style="max-height:150px;overflow-y:auto;"></div>
         </div>
+        <div class="prop-group" id="prop-layout-group" style="display:none;">
+          <label>Layout</label>
+          <select id="prop-layout">
+            <option value="vertical">Vertical</option>
+            <option value="horizontal">Horizontal</option>
+          </select>
+        </div>
         <div class="prop-group" id="prop-embedurl-group" style="display:none;">
           <label>Embed URL</label>
           <input type="text" id="prop-embedurl" placeholder="https://example.com">
@@ -671,5 +678,22 @@
 
   <script src="js/widgets.js"></script>
   <script src="js/builder.js"></script>
+  <script>
+    // Load page links into nav
+    fetch('/api/pages').then(r => r.json()).then(pages => {
+      const nav = document.getElementById('header-nav');
+      if (!nav || !pages.length) return;
+      const sep = document.createElement('span');
+      sep.style.cssText = 'width:1px;height:16px;background:#30363d;margin:0 4px';
+      nav.insertBefore(sep, nav.firstChild);
+      pages.reverse().forEach(p => {
+        const a = document.createElement('a');
+        a.href = '/pages/' + p.id;
+        a.className = 'nav-link';
+        a.textContent = p.icon + ' ' + p.title;
+        nav.insertBefore(a, nav.firstChild);
+      });
+    }).catch(() => {});
+  </script>
 </body>
 </html>

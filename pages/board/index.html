@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LobsterBoard - Project Board</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117; color: #e6edf3; min-height: 100vh; overflow: hidden;
+    }
+    .board-main { height: calc(100vh - 42px); display: flex; flex-direction: column; overflow: hidden; }
+
+    .breadcrumb {
+      display: flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem;
+      background: #161b22; border-bottom: 1px solid #30363d; font-size: 0.82rem; flex-shrink: 0; min-height: 36px;
+    }
+    .breadcrumb-seg { color: #58a6ff; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: background 0.15s; }
+    .breadcrumb-seg:hover { background: rgba(88,166,255,0.1); }
+    .breadcrumb-seg.current { color: #e6edf3; cursor: default; }
+    .breadcrumb-sep { color: #484f58; user-select: none; }
+
+    .columns-wrap { flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; padding-left: 1rem; }
+
+    .column {
+      min-width: 280px; max-width: 340px; width: 300px; flex-shrink: 0;
+      display: flex; flex-direction: column; border: 1px solid #30363d; border-radius: 8px;
+      background: #0d1117; margin: 0.5rem 0.4rem; overflow: hidden;
+    }
+    .col-header {
+      padding: 0.7rem 0.85rem; font-size: 0.8rem; font-weight: 700; color: #e6edf3;
+      letter-spacing: 0.03em; border-bottom: 1px solid #30363d; background: #1c2128;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    }
+    .col-header-count { font-size: 0.7rem; font-weight: 500; color: #8b949e; background: #21262d; padding: 1px 8px; border-radius: 10px; }
+
+    .col-items { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+    .col-item {
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.85rem;
+      cursor: pointer; transition: background 0.12s; border-left: 3px solid transparent;
+      border-bottom: 1px solid #161b22; font-size: 0.85rem; color: #e6edf3;
+    }
+    .col-item:last-child { border-bottom: none; }
+    .col-item:hover { background: #1c2128; }
+    .col-item.selected { background: #1c2333; border-left-color: #58a6ff; }
+    .col-item-icon { font-size: 1rem; flex-shrink: 0; }
+    .col-item-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .col-item-arrow { color: #484f58; font-size: 0.7rem; flex-shrink: 0; }
+    .col-item-badge { font-size: 0.65rem; padding: 1px 6px; border-radius: 10px; flex-shrink: 0; font-weight: 600; }
+
+    .badge-complete { background: #1a3a2a; color: #3fb950; }
+    .badge-in-progress { background: #3a2f1a; color: #d29922; }
+    .badge-blocked { background: #3a1a1a; color: #f85149; }
+    .badge-waiting { background: #1a2a3a; color: #58a6ff; }
+    .badge-backlog { background: #1e1e2e; color: #8b949e; }
+
+    .detail-panel {
+      min-width: 350px; flex: 1; display: flex; flex-direction: column;
+      border: 1px solid #30363d; border-radius: 8px; background: #0d1117; margin: 0.5rem 0.4rem; overflow: hidden;
+    }
+    .detail-header { padding: 1rem; border-bottom: 1px solid #30363d; background: #1c2128; flex-shrink: 0; }
+    .detail-title { font-size: 1.1rem; font-weight: 600; color: #e6edf3; display: flex; align-items: center; gap: 0.5rem; }
+    .detail-meta { margin-top: 0.5rem; font-size: 0.75rem; color: #8b949e; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .detail-status-select {
+      background: #21262d; border: 1px solid #30363d; color: #e6edf3;
+      padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;
+    }
+    .detail-body { flex: 1; overflow-y: auto; padding: 1rem; }
+
+    .comments-section { margin-top: 0.5rem; }
+    .comments-title { font-size: 0.8rem; font-weight: 600; color: #8b949e; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .comment { padding: 0.6rem; background: #161b22; border-radius: 6px; margin-bottom: 0.5rem; border: 1px solid #21262d; }
+    .comment-header { display: flex; justify-content: space-between; font-size: 0.7rem; color: #8b949e; margin-bottom: 0.3rem; }
+    .comment-author { color: #58a6ff; font-weight: 600; }
+    .comment-text { font-size: 0.82rem; color: #c9d1d9; line-height: 1.4; }
+
+    .comment-form {
+      display: flex; gap: 0.5rem; flex-shrink: 0; padding: 0.75rem 1rem;
+      border-top: 1px solid #21262d; background: #161b22;
+    }
+    .comment-input {
+      flex: 1; background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+      padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.82rem; font-family: inherit; resize: none;
+    }
+    .comment-input:focus { outline: none; border-color: #58a6ff; }
+    .comment-btn, .add-item-btn {
+      background: #238636; color: #fff; border: none; padding: 0.4rem 0.75rem;
+      border-radius: 6px; font-size: 0.78rem; cursor: pointer; font-weight: 600; transition: background 0.15s;
+    }
+    .comment-btn:hover, .add-item-btn:hover { background: #2ea043; }
+
+    .add-item-form {
+      display: flex; gap: 0.35rem; padding: 0.4rem 0.5rem;
+      border-top: 1px solid #21262d; background: #161b22; flex-shrink: 0;
+    }
+    .add-item-input {
+      flex: 1; background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+      padding: 0.3rem 0.5rem; border-radius: 4px; font-size: 0.78rem; font-family: inherit;
+    }
+    .add-item-input:focus { outline: none; border-color: #58a6ff; }
+
+    .empty-state { padding: 2rem 1rem; text-align: center; color: #484f58; font-size: 0.82rem; }
+    .empty-state-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+    @media (max-width: 768px) { .column { min-width: 260px; width: 260px; } .detail-panel { min-width: 280px; } }
+    @media (max-width: 500px) {
+      .columns-wrap { scroll-snap-type: x mandatory; }
+      .column, .detail-panel { min-width: 100vw; width: 100vw; max-width: 100vw; scroll-snap-align: start; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="page-nav"></nav>
+
+  <main class="board-main">
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div class="columns-wrap" id="columns"></div>
+  </main>
+
+  <script src="/pages/_shared/nav.js"></script>
+  <script>
+    const API = '/api/pages/board';
+    let boardData = null;
+    let activePath = [];
+
+    const STATUS_MAP = {
+      'complete':    { label: 'Complete',    badge: 'badge-complete',    emoji: '✅' },
+      'in-progress': { label: 'In Progress', badge: 'badge-in-progress', emoji: '🟡' },
+      'blocked':     { label: 'Blocked',     badge: 'badge-blocked',     emoji: '🔴' },
+      'waiting':     { label: 'Waiting',     badge: 'badge-waiting',     emoji: '⏳' },
+      'backlog':     { label: 'Backlog',     badge: 'badge-backlog',     emoji: '📋' },
+    };
+
+    async function loadBoard() {
+      const res = await fetch(API);
+      boardData = await res.json();
+      render();
+    }
+
+    function getNodeAtDepth(depth) {
+      let node = boardData;
+      for (let i = 0; i < depth; i++) {
+        if (!node.children) return null;
+        const child = node.children.find(c => c.id === activePath[i]);
+        if (!child) return null;
+        node = child;
+      }
+      return node;
+    }
+
+    function getPathSegments() {
+      const segs = [{ id: 'root', title: boardData.icon + ' Board', depth: -1 }];
+      let node = boardData;
+      for (let i = 0; i < activePath.length; i++) {
+        const child = (node.children || []).find(c => c.id === activePath[i]);
+        if (!child) break;
+        segs.push({ id: child.id, title: (child.icon || '') + ' ' + child.title, depth: i });
+        node = child;
+      }
+      return segs;
+    }
+
+    function renderBreadcrumb() {
+      const el = document.getElementById('breadcrumb');
+      const segs = getPathSegments();
+      el.innerHTML = segs.map((s, i) => {
+        const isLast = i === segs.length - 1;
+        const sep = i > 0 ? '<span class="breadcrumb-sep">›</span>' : '';
+        const cls = isLast ? 'breadcrumb-seg current' : 'breadcrumb-seg';
+        return sep + `<span class="${cls}" onclick="navTo(${s.depth})">${s.title}</span>`;
+      }).join('');
+    }
+
+    function navTo(depth) { activePath = activePath.slice(0, depth + 1); render(); }
+
+    function selectItem(depth, id) {
+      activePath = activePath.slice(0, depth);
+      activePath[depth] = id;
+      render();
+      setTimeout(() => { document.getElementById('columns').scrollLeft = document.getElementById('columns').scrollWidth; }, 10);
+    }
+
+    function getApiPath(depth) {
+      const segs = [];
+      let node = boardData;
+      for (let i = 0; i < depth; i++) {
+        const child = (node.children || []).find(c => c.id === activePath[i]);
+        if (!child) break;
+        segs.push(child.id);
+        node = child;
+      }
+      return segs.join('/');
+    }
+
+    function buildColumn(node, depth) {
+      const col = document.createElement('div');
+      col.className = 'column';
+      const header = document.createElement('div');
+      header.className = 'col-header';
+      const headerTitle = document.createElement('span');
+      headerTitle.textContent = (node.icon || '') + ' ' + node.title;
+      header.appendChild(headerTitle);
+      if (node.children && node.children.length) {
+        const count = document.createElement('span');
+        count.className = 'col-header-count';
+        count.textContent = node.children.length + ' items';
+        header.appendChild(count);
+      }
+      col.appendChild(header);
+
+      const items = document.createElement('div');
+      items.className = 'col-items';
+      if (!node.children || node.children.length === 0) {
+        items.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div>No items yet</div>';
+      } else {
+        for (const child of node.children) {
+          const row = document.createElement('div');
+          row.className = 'col-item' + (activePath[depth] === child.id ? ' selected' : '');
+          row.onclick = () => selectItem(depth, child.id);
+          row.innerHTML = `<span class="col-item-icon">${child.icon || '📄'}</span>
+            <span class="col-item-title">${esc(child.title)}</span>
+            ${child.status && STATUS_MAP[child.status] ? `<span class="col-item-badge ${STATUS_MAP[child.status].badge}">${STATUS_MAP[child.status].label}</span>` : ''}
+            ${child.children && child.children.length > 0 ? '<span class="col-item-arrow">▶</span>' : ''}`;
+          items.appendChild(row);
+        }
+      }
+      col.appendChild(items);
+
+      const apiPath = node.id === 'root' ? '' : getApiPath(depth);
+      const form = document.createElement('div');
+      form.className = 'add-item-form';
+      form.innerHTML = `<input class="add-item-input" placeholder="Add item…" onkeydown="if(event.key==='Enter')addItem(this,'${apiPath}',${depth})">
+        <button class="add-item-btn" onclick="addItem(this.previousElementSibling,'${apiPath}',${depth})">+</button>`;
+      col.appendChild(form);
+      return col;
+    }
+
+    function buildDetailPanel(node, parentPath) {
+      const panel = document.createElement('div');
+      panel.className = 'detail-panel';
+      panel.innerHTML = `
+        <div class="detail-header">
+          <div class="detail-title"><span>${node.icon || '📄'}</span><span>${esc(node.title)}</span></div>
+          <div class="detail-meta">
+            <span>Status: <select class="detail-status-select" onchange="updateStatus('${parentPath}','${node.id}',this.value)">
+              ${Object.entries(STATUS_MAP).map(([k,v]) => `<option value="${k}" ${k===node.status?'selected':''}>${v.emoji} ${v.label}</option>`).join('')}
+            </select></span>
+            <span>Created: ${fmtDate(node.createdAt)}</span>
+            <span>Updated: ${fmtDate(node.updatedAt)}</span>
+            ${node.children?.length ? `<span>Children: ${node.children.length}</span>` : ''}
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="comments-section">
+            <div class="comments-title">💬 Comments (${(node.comments||[]).length})</div>
+            <div id="comments-list">
+              ${(node.comments||[]).map(c => `
+                <div class="comment">
+                  <div class="comment-header"><span class="comment-author">${esc(c.author)}</span><span>${fmtDate(c.timestamp)}</span></div>
+                  <div class="comment-text">${esc(c.text)}</div>
+                </div>`).join('') || '<div class="empty-state">No comments yet</div>'}
+            </div>
+          </div>
+        </div>
+        <div class="comment-form">
+          <input class="comment-input" id="comment-input" placeholder="Add a comment…" onkeydown="if(event.key==='Enter')postComment('${parentPath}','${node.id}')">
+          <button class="comment-btn" onclick="postComment('${parentPath}','${node.id}')">Send</button>
+        </div>`;
+      return panel;
+    }
+
+    function render() {
+      renderBreadcrumb();
+      const wrap = document.getElementById('columns');
+      wrap.innerHTML = '';
+      wrap.appendChild(buildColumn(boardData, 0));
+      for (let i = 0; i < activePath.length; i++) {
+        const parent = getNodeAtDepth(i);
+        if (!parent) break;
+        const selected = (parent.children || []).find(c => c.id === activePath[i]);
+        if (!selected) break;
+        const hasChildren = selected.children && selected.children.length > 0;
+        const isLast = i === activePath.length - 1;
+        if (isLast && !hasChildren) {
+          wrap.appendChild(buildDetailPanel(selected, getApiPath(i)));
+        } else {
+          wrap.appendChild(buildColumn(selected, i + 1));
+        }
+      }
+    }
+
+    async function addItem(input, apiPath, depth) {
+      const title = input.value.trim();
+      if (!title) return;
+      const postUrl = apiPath ? `${API}/${apiPath}/items` : `${API}/items`;
+      try {
+        const res = await fetch(postUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) });
+        if (res.ok) { input.value = ''; await loadBoard(); }
+      } catch (e) { console.error(e); }
+    }
+
+    async function postComment(parentPath, itemId) {
+      const input = document.getElementById('comment-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const url = parentPath ? `${API}/${parentPath}/items/${itemId}/comments` : `${API}/items/${itemId}/comments`;
+      try {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: 'User', text }) });
+        if (res.ok) { input.value = ''; await loadBoard(); }
+      } catch (e) { console.error(e); }
+    }
+
+    async function updateStatus(parentPath, itemId, status) {
+      const url = parentPath ? `${API}/${parentPath}/items/${itemId}` : `${API}/items/${itemId}`;
+      try { await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); await loadBoard(); }
+      catch (e) { console.error(e); }
+    }
+
+    function fmtDate(d) {
+      if (!d) return '—';
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+    loadBoard();
+  </script>
+</body>
+</html>

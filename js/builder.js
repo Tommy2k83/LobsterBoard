@@ -792,6 +792,7 @@ function initProperties() {
 
   // Feed URL
   document.getElementById('prop-feedurl').addEventListener('change', onPropertyChange);
+  document.getElementById('prop-layout').addEventListener('change', onPropertyChange);
 
   // Text header fields
   document.getElementById('prop-fontsize').addEventListener('change', onPropertyChange);
@@ -867,6 +868,13 @@ function showProperties(widget) {
   document.getElementById('prop-showborder-group').style.display = 'none';
   document.getElementById('prop-columns-group').style.display = 'none';
   document.getElementById('prop-feedurl-group').style.display = 'none';
+  document.getElementById('prop-layout-group').style.display = 'none';
+
+  // Show layout field (pages-menu)
+  if (widget.properties.layout !== undefined) {
+    document.getElementById('prop-layout-group').style.display = 'block';
+    document.getElementById('prop-layout').value = widget.properties.layout || 'vertical';
+  }
 
   // Show text header fields
   if (widget.properties.fontSize !== undefined) {
@@ -1338,6 +1346,9 @@ function onPropertyChange(e) {
       const el = document.getElementById(widget.id);
       if (el) el.dataset.showBorder = e.target.checked ? 'true' : 'false';
       renderWidgetPreview(widget);
+      break;
+    case 'prop-layout':
+      widget.properties.layout = e.target.value;
       break;
     case 'prop-location':
       widget.properties.location = e.target.value;
